@@ -71,5 +71,8 @@ alpha = [A-Za-z];
 <INITIAL>(" "|"\t")+ => (continue());
 <INITIAL>.       => (ErrorMsg.error yypos ("illegal character " ^ yytext); continue());
 
+<INITIAL>"/*"   => (YYBEGIN COMMENT; continue());
+<COMMENT>"*/"   => (YYBEGIN INITIAL; continue());
+
 
 
