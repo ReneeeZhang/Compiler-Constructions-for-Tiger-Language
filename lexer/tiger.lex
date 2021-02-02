@@ -10,6 +10,8 @@ fun eof() = let val pos = hd(!linePos) in Tokens.EOF(pos,pos) end
 val strcnt = ref 0
 val strbuf = ref ""
 
+val comment_depth = ref 0
+
 %%
 %s STR ESC;
 dig = [0-9];
@@ -71,8 +73,12 @@ alpha = [A-Za-z];
 <INITIAL>(" "|"\t")+ => (continue());
 <INITIAL>.       => (ErrorMsg.error yypos ("illegal character " ^ yytext); continue());
 
-<INITIAL>"/*"   => (YYBEGIN COMMENT; continue());
-<COMMENT>"*/"   => (YYBEGIN INITIAL; continue());
-
-
-
+(* Comments *)
+<INITIAL>"/*"   => (YYBEGIN COMMENT; comment_depth := !comment_depth + 1; continue()); (* From INTITIAL to COMMENT *)
+<COMMENT>"/*"   => (comment_depth := !comment_depth + 1; continue());
+<COMMENT>"*/"   => (comment_depth := !comment_depth - 1;
+                    if !comment_depth = 0 then YYBEGIN INITIAL else YYBEGIN COMMENT;
+                    continue());
+(* TODO: abstract "\n" case out to a common one for all states; or write a funtion binding *)
+<COMMENT>\n	    => (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
+<COMMENT>.      => (continue());
