@@ -4,5 +4,4 @@
 # lexer
 lexer/.cm/**
 *.lex.sml
-lexer/haha.h
 lexer/runscript.sml
