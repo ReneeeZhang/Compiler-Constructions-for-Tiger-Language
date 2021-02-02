@@ -1,6 +1,6 @@
 # common
 *.tig
-*.~
+*~
 
 # lexer
 lexer/.cm/**
