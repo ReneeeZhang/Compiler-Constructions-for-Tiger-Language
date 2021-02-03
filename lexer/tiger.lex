@@ -13,7 +13,7 @@ val strbuf = ref ""
 val comment_depth = ref 0
 
 %%
-%s STR ESC;
+%s STR ESC COMMENT;
 dig = [0-9];
 alpha = [A-Za-z];
 
@@ -73,12 +73,11 @@ alpha = [A-Za-z];
 <INITIAL>(" "|"\t")+ => (continue());
 <INITIAL>.       => (ErrorMsg.error yypos ("illegal character " ^ yytext); continue());
 
-(* Comments *)
-<INITIAL>"/*"   => (YYBEGIN COMMENT; comment_depth := !comment_depth + 1; continue()); (* From INTITIAL to COMMENT *)
+<INITIAL>"/*"   => (YYBEGIN COMMENT; comment_depth := !comment_depth + 1; continue());
 <COMMENT>"/*"   => (comment_depth := !comment_depth + 1; continue());
 <COMMENT>"*/"   => (comment_depth := !comment_depth - 1;
                     if !comment_depth = 0 then YYBEGIN INITIAL else YYBEGIN COMMENT;
                     continue());
-(* TODO: abstract "\n" case out to a common one for all states; or write a funtion binding *)
+
 <COMMENT>\n	    => (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
 <COMMENT>.      => (continue());
