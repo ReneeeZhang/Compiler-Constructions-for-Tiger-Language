@@ -21,6 +21,7 @@ val strbuf = ref "";
 %s STR ESC;
 dig = [0-9];
 alpha = [A-Za-z];
+asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
 
 %%
 <INITIAL>\n             => (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
@@ -36,7 +37,7 @@ alpha = [A-Za-z];
 <STR>[\\][\n\t ]+[\\]   => (continue());
 <ESC>"^"[a-z]           => (YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
 <ESC>[nt\\"]		=> (YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
-<ESC>[0-9][0-9][0-9]	=> (YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
+<ESC>{asciicodes}	=> (YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
 <ESC>.        		=> (ErrorMsg.error yypos ("illegal escape"); YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
 
 
