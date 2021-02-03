@@ -5,10 +5,17 @@ type lexresult = Tokens.token
 val lineNum = ErrorMsg.lineNum
 val linePos = ErrorMsg.linePos
 fun err(p1,p2) = ErrorMsg.error p1
+val strcnt = ref 0;
+val strbuf = ref "";
 
-fun eof() = let val pos = hd(!linePos) in Tokens.EOF(pos,pos) end
-val strcnt = ref 0
-val strbuf = ref ""
+fun eof() = 
+let 
+  val pos = hd(!linePos) 
+  val u = if !strcnt = 0 then () else ErrorMsg.error pos ("open string") 
+in 
+  Tokens.EOF(pos,pos) 
+end
+
 
 val comment_depth = ref 0
 
