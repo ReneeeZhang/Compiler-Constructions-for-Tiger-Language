@@ -1,23 +1,22 @@
 type pos = int
 type lexresult = Tokens.token
 
-
 val lineNum = ErrorMsg.lineNum
 val linePos = ErrorMsg.linePos
 fun err(p1,p2) = ErrorMsg.error p1
 val strcnt = ref 0;
 val strbuf = ref "";
 
+val comment_depth = ref 0
+
 fun eof() = 
 let 
   val pos = hd(!linePos) 
-  val u = if !strcnt = 0 then () else ErrorMsg.error pos ("open string") 
 in 
+  if !strcnt = 0 then () else ErrorMsg.error pos ("Open string");
+  if !comment_depth = 0 then () else ErrorMsg.error pos ("Unmatched comment tags");
   Tokens.EOF(pos,pos) 
 end
-
-
-val comment_depth = ref 0
 
 %%
 %s STR ESC COMMENT;
