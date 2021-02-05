@@ -1,6 +1,6 @@
 signature Tiger_TOKENS =
-sig
-type linenum (* = int *)
+sig  
+type linenum  = int (*This int originally commented out*) 
 type token
 val TYPE:  linenum * linenum -> token
 val VAR:  linenum * linenum -> token

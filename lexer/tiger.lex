@@ -6,9 +6,8 @@ val linePos = ErrorMsg.linePos
 fun err(p1,p2) = ErrorMsg.error p1
 val strcnt = ref 0;
 val strbuf = ref "";
-
+val strpos : Tokens.linenum ref = ref 0;
 val comment_depth = ref 0
-
 fun eof() = 
 let 
   val pos = hd(!linePos) 
@@ -19,11 +18,12 @@ in
 end
 
 %%
-%s STR ESC COMMENT;
+%s STR COMMENT;
 dig = [0-9];
 alpha = [A-Za-z];
 asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
 %%
+
 <INITIAL>\n	=> (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
 <INITIAL>"," => (Tokens.COMMA(yypos, yypos + 1));
 <INITIAL>";" => (Tokens.SEMICOLON(yypos, yypos + 1));
@@ -67,15 +67,21 @@ asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
 <INITIAL>nil => (Tokens.NIL(yypos, yypos + 3));
 <INITIAL>[a-zA-Z][a-zA-Z0-9_]* => (Tokens.ID(yytext, yypos, yypos + size yytext));
 <INITIAL>[0-9]+	=> (Tokens.INT(valOf(Int.fromString yytext), yypos, yypos + size yytext));
-<INITIAL>["]   => (YYBEGIN STR; strbuf := ""; strcnt := !strcnt + 1; continue());
-<STR>["]       => (YYBEGIN INITIAL; strcnt := !strcnt - 1; Tokens.STRING((!strbuf), yypos, yypos + size (!strbuf)));
+<INITIAL>\"   => (YYBEGIN STR; strpos := yypos; strbuf := ""; strcnt := !strcnt + 1; continue());
+<STR>\"       => (YYBEGIN INITIAL; strcnt := !strcnt - 1; Tokens.STRING((!strbuf), !strpos, yypos+1));
 <STR>[^"\\]    => (strbuf := !strbuf ^ yytext; continue());
-<STR>[\\]     => (YYBEGIN ESC; strbuf := !strbuf ^ yytext; continue());
-<STR>[\\][\n\t ]+[\\]   => (continue());
-<ESC>"^"[a-z]     => (YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
-<ESC>[nt\\"]   => (YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
-<ESC>{asciicodes}      => (YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
-<ESC>.        => (ErrorMsg.error yypos ("illegal escape"); YYBEGIN STR; strbuf := !strbuf ^ yytext; continue());
+<STR>\\n     => (strbuf := !strbuf ^ "\n"; continue());
+<STR>\\\"    => (strbuf := !strbuf ^ "\""; continue());
+<STR>\\[\n\t ]+\\   => (continue());
+<STR>\\\\   => (strbuf := !strbuf ^ "\\"; continue());
+<STR>\\"^"[a-z]     => (strbuf := !strbuf ^ yytext; continue());
+<STR>\\t  => (strbuf := !strbuf ^ "\t"; continue());
+<STR>\\{asciicodes}      => (strbuf := !strbuf ^ Char.toString(Char.chr(
+  if Option.isSome(Int.fromString(String.substring(yytext, 1,3))) 
+  then valOf(Int.fromString(String.substring(yytext,1,3))) else 0)); continue());
+
+
+<STR>\\.        => (ErrorMsg.error yypos ("illegal escape"); strbuf := !strbuf ^ yytext; continue());
 
 <INITIAL>(" "|"\t")+ => (continue());
 <INITIAL>.       => (ErrorMsg.error yypos ("illegal character " ^ yytext); continue());
@@ -86,5 +92,6 @@ asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
                     if !comment_depth = 0 then YYBEGIN INITIAL else YYBEGIN COMMENT;
                     continue());
 
-<COMMENT>\n	    => (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
+<COMMENT>\n        => (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
 <COMMENT>.      => (continue());
+
