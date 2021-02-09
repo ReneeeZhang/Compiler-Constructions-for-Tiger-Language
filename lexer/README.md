@@ -25,3 +25,9 @@ If the incoming symbols do not match any reserved keywords nor punctuations, new
 
 ### Within `STR` State
 Similarly, an error will be raised if the incoming symbols match none of patterns as [Strings](https://gitlab.oit.duke.edu/cms156/ece553project/-/edit/test/lexer/README.md#strings) displays.
+
+### At EOF
+If we reach the end of the file and we are currently still in a string literal state or in a comment state that means we have an open comment or an open string in our file and we flag that as an error.
+
+### Other Errors
+At any point, if we encounter illegal characters (i.e. if none of our lexing rules apply), we flag that as an error. 
