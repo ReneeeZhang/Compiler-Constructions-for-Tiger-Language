@@ -1,5 +1,5 @@
 # Lexer Documentation
-Anshu Dwibhashi, Yuanrui Zheng, Clayton Shafer  
+Anshu Dwibhashi, Yuanrui Zhang, Clayton Shafer  
 ECE 553 Spring 2021
 
 ## Strings
