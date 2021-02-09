@@ -15,5 +15,10 @@ When the EOF token is read, our lexer performs two checks to determine whether o
 occured. For comments and strings, the lexer keeps track of depth using refs, as described above. If either of these 
 refs have a value not equal to zero when the file ends, the file contains one or more open strings/comments. In this
 case, an error message will be printed. 
-## Errors
 
+## Errors
+### Within `INITIAL` State
+If the incoming symbols do not match any reserved keywords nor punctuations, new lines, white spaces and tabs, then we treat it as a error.
+
+### Within `STR` State
+Similarly, an error will be raised if the incoming symbols match none of patterns as [Strings](https://gitlab.oit.duke.edu/cms156/ece553project/-/edit/test/lexer/README.md#strings) displays.
