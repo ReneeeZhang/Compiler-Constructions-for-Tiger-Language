@@ -14,7 +14,10 @@ Our lexer sets up a `COMMENT` state to specially address comment-related lexical
 When the EOF token is read, our lexer performs two checks to determine whether or not certain lexical errors have 
 occured. For comments and strings, the lexer keeps track of depth using refs, as described above. If either of these 
 refs have a value not equal to zero when the file ends, the file contains one or more open strings/comments. In this
-case, an error message will be printed. 
+case, an error message will be printed.
+
+## Identifiers, Integer Literals and Other Tokens
+To identify identifiers, we look for any string that starts with a letter and is composed of letters, digits and underscores. All keyword rules appear before the rule to identify identifiers so that a string that is also the name of a keyword is identified as a keyword rather than an identifier. For integer literals, we look for one or more decimal integer digits and convert the string corresponding to a combination of decimal digits into an integer value. For all other keywords and punctuation-tokens, we match the literal keyword or punctuation and create a token for those matches.
 
 ## Errors
 ### Within `INITIAL` State
