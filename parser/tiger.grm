@@ -11,7 +11,7 @@
   | BREAK | NIL
   | FUNCTION | VAR | TYPE 
 
-%nonterm  exp | program
+%nonterm  exp | program | stm | stmlist
 
 %pos int
 %verbose
@@ -22,7 +22,7 @@
 %name Tiger
 
 %keyword WHILE FOR TO BREAK LET IN END FUNCTION VAR TYPE ARRAY IF THEN ELSE 
-	DO OF NIL
+        DO OF NIL
 
 %prefer THEN ELSE LPAREN
 
@@ -32,7 +32,32 @@
 
 %%
 
-program	: exp				()
+program : stmlist                        ()
 
-	
-exp: 			()
+stmlist : stm stmlist                    ()
+    | stm                                ()
+
+stm : ID ASSIGN exp                      ()
+    | exp                                ()
+        
+exp : INT                                ()
+    | ID                                 ()
+    | IF exp THEN stm ELSE stm           ()
+    | IF exp THEN stm                    ()
+    | exp AND exp                        ()
+    | exp OR exp                         ()
+    | exp EQ exp                         ()
+    | exp NEQ exp                        ()
+    | exp LT exp                         ()
+    | exp GT exp                         ()
+    | exp LE exp                         ()
+    | exp GE exp                         () 
+    | exp PLUS exp                       ()
+    | exp MINUS exp                      ()
+    | exp TIMES exp                      ()
+    | exp DIVIDE exp                     ()
+    | LPAREN exp RPAREN                  ()
+    | LPAREN RPAREN                      ()
+
+
+
