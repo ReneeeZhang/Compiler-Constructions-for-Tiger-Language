@@ -1,3 +1,13 @@
+# common
+*.tig
+*~
+
+# parser
+parser/.cm/**
+parser/runscript.sml
+*.grm.*
+
+# lexer
 lexer/.cm/**
 *.lex.sml
-*.tig
+lexer/runscript.sml

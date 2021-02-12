@@ -1,12 +1,14 @@
 type pos = int
-type lexresult = Tokens.token
+type svalue = Tokens.svalue
+type ('a,'b) token = ('a,'b) Tokens.token
+type lexresult = (svalue, pos) token
 
 val lineNum = ErrorMsg.lineNum
 val linePos = ErrorMsg.linePos
 fun err(p1,p2) = ErrorMsg.error p1
 val strcnt = ref 0;
 val strbuf = ref "";
-val strpos : Tokens.linenum ref = ref 0;
+val strpos = ref 0;
 val comment_depth = ref 0
 fun eof() = 
 let 
@@ -18,10 +20,12 @@ in
 end
 
 %%
+%header (functor TigerLexFun(structure Tokens: Tiger_TOKENS));
 %s STR COMMENT;
 dig = [0-9];
 alpha = [A-Za-z];
 asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
+
 %%
 
 <INITIAL>\n	=> (lineNum := !lineNum+1; linePos := yypos :: !linePos; continue());
@@ -79,6 +83,8 @@ asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
 <STR>\\{asciicodes}      => (strbuf := !strbuf ^ Char.toString(Char.chr(
   if Option.isSome(Int.fromString(String.substring(yytext, 1,3))) 
   then valOf(Int.fromString(String.substring(yytext,1,3))) else 0)); continue());
+
+
 <STR>\\.        => (ErrorMsg.error yypos ("illegal escape"); strbuf := !strbuf ^ yytext; continue());
 
 <INITIAL>(" "|"\t")+ => (continue());
