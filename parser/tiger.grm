@@ -11,15 +11,22 @@
   | BREAK | NIL
   | FUNCTION | VAR | TYPE 
 
-%nonterm  exp | program | exps | op | cond | lvalue | loop | decs | expseq
-  
+%nonterm  exp | program | exps | cond | lvalue | loop | decs | expseq
+%nonassoc IF FOR WHILE
+%nonassoc THEN TO
+%nonassoc ELSE DO
+%left ASSIGN
+%nonassoc EQ NEQ LT GT GE LE
+%left AND OR
+%left PLUS MINUS
+%left TIMES DIVIDE
+
 
 %pos int
 %verbose
 %start program
 %eop EOF
 %noshift EOF
-
 %name Tiger
 
 %keyword WHILE FOR TO BREAK LET IN END FUNCTION VAR TYPE ARRAY IF THEN ELSE 
@@ -48,31 +55,29 @@ loop : WHILE exp DO exp                  ()
     | FOR ID ASSIGN exp TO exp DO exp    ()
         
 exp : INT                                ()
-    | ID                                 ()
     | lvalue ASSIGN exp                  ()
     | lvalue                             ()
+    | STRING                             ()
     | cond                               ()
     | loop                               ()
-    | exp op exp                         ()
+    | exp OR exp                         ()
+    | exp AND exp                        ()
+    | exp GE exp                         ()
+    | exp LE exp                         ()
+    | exp LT exp                         ()
+    | exp GT exp                         ()
+    | exp EQ exp                         ()
+    | exp NEQ exp                        ()
+    | exp PLUS exp                       ()
+    | exp MINUS exp                      ()
+    | exp TIMES exp                      ()
+    | exp DIVIDE exp                     ()
     | LET decs IN expseq END             ()
     | LPAREN exp RPAREN                  ()
     | LPAREN RPAREN                      ()
 
 cond : IF exp THEN exp ELSE exp          ()
-    | IF exp THEN exp                    ()
-
-op  : AND                                ()
-    | OR                                 ()
-    | EQ                                 ()
-    | NEQ                                ()
-    | LT                                 ()
-    | GT                                 ()
-    | LE                                 ()
-    | GE                                 ()
-    | PLUS                               ()
-    | MINUS                              ()
-    | TIMES                              ()
-    | DIVIDE                             ()
+    | IF exp THEN exp                    () 
 
 expseq : exp SEMICOLON expseq            ()
     | exp                                ()
