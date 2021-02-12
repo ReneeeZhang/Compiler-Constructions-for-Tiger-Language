@@ -11,7 +11,8 @@
   | BREAK | NIL
   | FUNCTION | VAR | TYPE 
 
-%nonterm  exp | program | stm | stmlist
+%nonterm  exp | program | exps | op | cond | lvalue | loop | decs | expseq
+  
 
 %pos int
 %verbose
@@ -32,32 +33,46 @@
 
 %%
 
-program : stmlist                        ()
+program : exps                           ()
 
-stmlist : stm stmlist                    ()
-    | stm                                ()
-
-stm : ID ASSIGN exp                      ()
+exps : exp exps                          ()
     | exp                                ()
+
+decs : VAR                               ()
+
+lvalue : ID                              ()
+    | lvalue DOT ID                      ()
+    | lvalue LBRACK exp RBRACK           ()
+
+loop : WHILE exp DO exp                  ()
+    | FOR ID ASSIGN exp TO exp DO exp    ()
         
 exp : INT                                ()
     | ID                                 ()
-    | IF exp THEN stm ELSE stm           ()
-    | IF exp THEN stm                    ()
-    | exp AND exp                        ()
-    | exp OR exp                         ()
-    | exp EQ exp                         ()
-    | exp NEQ exp                        ()
-    | exp LT exp                         ()
-    | exp GT exp                         ()
-    | exp LE exp                         ()
-    | exp GE exp                         () 
-    | exp PLUS exp                       ()
-    | exp MINUS exp                      ()
-    | exp TIMES exp                      ()
-    | exp DIVIDE exp                     ()
+    | lvalue ASSIGN exp                  ()
+    | lvalue                             ()
+    | cond                               ()
+    | loop                               ()
+    | exp op exp                         ()
+    | LET decs IN expseq END             ()
     | LPAREN exp RPAREN                  ()
     | LPAREN RPAREN                      ()
 
+cond : IF exp THEN exp ELSE exp          ()
+    | IF exp THEN exp                    ()
 
+op  : AND                                ()
+    | OR                                 ()
+    | EQ                                 ()
+    | NEQ                                ()
+    | LT                                 ()
+    | GT                                 ()
+    | LE                                 ()
+    | GE                                 ()
+    | PLUS                               ()
+    | MINUS                              ()
+    | TIMES                              ()
+    | DIVIDE                             ()
 
+expseq : exp SEMICOLON expseq            ()
+    | exp                                ()
