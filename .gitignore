@@ -2,6 +2,11 @@
 *.tig
 *~
 
+# parser
+parser/.cm/**
+parser/runscript.sml
+*.grm.*
+
 # lexer
 lexer/.cm/**
 *.lex.sml
