@@ -79,6 +79,8 @@ asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
 <STR>\\{asciicodes}      => (strbuf := !strbuf ^ Char.toString(Char.chr(
   if Option.isSome(Int.fromString(String.substring(yytext, 1,3))) 
   then valOf(Int.fromString(String.substring(yytext,1,3))) else 0)); continue());
+
+
 <STR>\\.        => (ErrorMsg.error yypos ("illegal escape"); strbuf := !strbuf ^ yytext; continue());
 
 <INITIAL>(" "|"\t")+ => (continue());
