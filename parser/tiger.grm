@@ -16,13 +16,15 @@
 %nonassoc THEN TO
 %nonassoc ELSE DO
 %right ASSIGN OF
+%left OR
+%left AND
 %nonassoc EQ NEQ LT GT GE LE
-%left AND OR
 %left PLUS MINUS
 %left TIMES DIVIDE
 %left UMINUS
 
-%nonterm  exp | program | exps | cond | lvalue | loop | decs | expseq	| dec | tydec | fundec | vardec | ty | tyfields | funargs | recordargs
+%nonterm  exp | program | exps | cond | lvalue | loop | decs | expseq
+  | dec | tydec | fundec | vardec | ty | tyfields | funargs | recordargs
 
 %pos int
 %verbose
@@ -55,6 +57,7 @@ dec : tydec                                              ()
 tydec : TYPE ID EQ ty                                    ()
 
 ty : ID                                                  ()
+	| LBRACE RBRACE  		                             ()
     | LBRACE tyfields RBRACE                             ()
     | ARRAY OF ID                                        ()
 
@@ -65,7 +68,9 @@ vardec : VAR ID ASSIGN exp                               ()
     | VAR ID COLON ID ASSIGN exp                         ()
 
 fundec : FUNCTION ID LPAREN tyfields RPAREN EQ exp       ()
+ 	| FUNCTION ID LPAREN RPAREN EQ exp       ()
     | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ exp ()
+	| FUNCTION ID LPAREN RPAREN COLON ID EQ exp ()
 
 lvalue : ID                                              ()
     | lvalue DOT ID                                      ()
@@ -83,7 +88,7 @@ exp : INT                                                ()
     | LET decs IN expseq END                             ()
 	| ID LPAREN RPAREN									 ()
 	| ID LPAREN funargs RPAREN							 ()
-	| ID LBRACK exp RBRACK OF exp						 ()
+	| lvalue LBRACK exp RBRACK OF exp					 ()
 	| ID LBRACE RBRACE									 ()
 	| ID LBRACE recordargs RBRACE						 ()
     | cond                                               ()
