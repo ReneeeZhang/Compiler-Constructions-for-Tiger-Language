@@ -11,17 +11,18 @@
   | BREAK | NIL
   | FUNCTION | VAR | TYPE | UMINUS
 
-%nonterm  exp | program | exps | cond | lvalue | loop | decs | expseq
+
 %nonassoc IF FOR WHILE
 %nonassoc THEN TO
 %nonassoc ELSE DO
-%right ASSIGN
+%right ASSIGN OF
 %nonassoc EQ NEQ LT GT GE LE
 %left AND OR
 %left PLUS MINUS
 %left TIMES DIVIDE
 %left UMINUS
 
+%nonterm  exp | program | exps | cond | lvalue | loop | decs | expseq	| dec | tydec | fundec | vardec | ty | tyfields | funargs | recordargs
 
 %pos int
 %verbose
@@ -41,45 +42,76 @@
 
 %%
 
-program : exps                           ()
+program : exp                                            ()
 
-exps : exp SEMICOLON exps                ()
-    | exp                                ()
+decs : dec decs                                          ()
+    | dec                                                ()
 
-decs : VAR                               ()
 
-lvalue : ID                              ()
-    | lvalue DOT ID                      ()
-    | lvalue LBRACK exp RBRACK           ()
+dec : tydec                                              ()
+    | vardec                                             ()
+    | fundec                                             ()
 
-loop : WHILE exp DO exp                  ()
-    | FOR ID ASSIGN exp TO exp DO exp    ()
+tydec : TYPE ID EQ ty                                    ()
+
+ty : ID                                                  ()
+    | LBRACE tyfields RBRACE                             ()
+    | ARRAY OF ID                                        ()
+
+tyfields : ID COLON ID                                   ()
+    | tyfields COMMA ID COLON ID                         ()
+
+vardec : VAR ID ASSIGN exp                               ()
+    | VAR ID COLON ID ASSIGN exp                         ()
+
+fundec : FUNCTION ID LPAREN tyfields RPAREN EQ exp       ()
+    | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ exp ()
+
+lvalue : ID                                              ()
+    | lvalue DOT ID                                      ()
+    | lvalue LBRACK exp RBRACK                           ()
+
+loop : WHILE exp DO exp                                  ()
+    | FOR ID ASSIGN exp TO exp DO exp                    ()
         
-exp : INT                                ()
-    | lvalue ASSIGN exp                  ()
-    | lvalue                             ()
-    | STRING                             ()
-    | cond                               ()
-    | loop                               ()
-    | exp OR exp                         ()
-    | exp AND exp                        ()
-    | exp GE exp                         ()
-    | exp LE exp                         ()
-    | exp LT exp                         ()
-    | exp GT exp                         ()
-    | exp EQ exp                         ()
-    | exp NEQ exp                        ()
-    | exp PLUS exp                       ()
-    | exp MINUS exp                      ()
-    | exp TIMES exp                      ()
-    | exp DIVIDE exp                     ()
-    | MINUS exp     %prec UMINUS         ()
-    | LET decs IN expseq END             ()
-    | LPAREN exp RPAREN                  ()
-    | LPAREN RPAREN                      ()
+exp : INT                                                ()
+	| STRING											 ()
+	| NIL												 ()
+	| BREAK												 ()
+    | lvalue ASSIGN exp                                  ()
+    | lvalue                                             ()
+    | LET decs IN expseq END                             ()
+	| ID LPAREN RPAREN									 ()
+	| ID LPAREN funargs RPAREN							 ()
+	| ID LBRACK exp RBRACK OF exp						 ()
+	| ID LBRACE RBRACE									 ()
+	| ID LBRACE recordargs RBRACE						 ()
+    | cond                                               ()
+    | loop                                               ()
+    | exp AND exp                                        ()
+    | exp OR exp                                         ()
+    | exp EQ exp                                         ()
+    | exp NEQ exp                                        ()
+    | exp LT exp                                         ()
+    | exp GT exp                                         ()
+    | exp LE exp                                         ()
+    | exp GE exp                                         () 
+    | exp PLUS exp                                       ()
+    | exp MINUS exp                                      ()
+    | exp TIMES exp                                      ()
+    | exp DIVIDE exp                                     ()
+    | MINUS exp         %prec UMINUS                     ()
+    | LPAREN expseq RPAREN                               ()
+    | LPAREN RPAREN                                      ()
 
-cond : IF exp THEN exp ELSE exp          ()
-    | IF exp THEN exp                    () 
+recordargs : ID EQ exp									 ()
+	| recordargs COMMA ID EQ exp						 ()
 
-expseq : exp SEMICOLON expseq            ()
-    | exp                                ()
+funargs : exp											 ()
+	| exp COMMA funargs									 ()
+
+cond : IF exp THEN exp ELSE exp                          ()
+    | IF exp THEN exp                                    ()    
+
+expseq : exp SEMICOLON expseq                            ()
+    | exp                                                ()
