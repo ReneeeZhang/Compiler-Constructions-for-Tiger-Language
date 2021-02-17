@@ -15,7 +15,8 @@
 %nonassoc IF FOR WHILE
 %nonassoc THEN TO
 %nonassoc ELSE DO
-%right ASSIGN OF
+%right OF
+%nonassoc ASSIGN
 %left OR
 %left AND
 %nonassoc EQ NEQ LT GT GE LE
