@@ -1,3 +1,5 @@
+structure A = Absyn;
+
 %%
 %term
     EOF 
@@ -24,8 +26,14 @@
 %left TIMES DIVIDE
 %left UMINUS
 
-%nonterm  exp | program | exps | cond | lvalue | loop | decs | expseq
-  | dec | tydec | fundec | vardec | ty | tyfields | funargs | recordargs
+%nonterm  exp of A.exp | program of A.exp | cond of {test: A.exp, then': A.exp, else': A.exp option, pos: A.pos}
+  | lvalue of A.var
+  | whileloop of {test: A.exp, body: A.exp, pos: A.pos}
+  | forloop of {var: A.symbol, escape: bool ref, lo: A.exp, hi: A.exp, body: A.exp, pos: A.pos}
+  | decs of A.dec list | expseq of A.exp list
+  | dec of A.dec | tydec of {name: A.symbol, ty: A.ty, pos: A.pos} list | fundec of A.fundec list
+  | vardec of {name: A.symbol, escape: bool ref, typ: (A.symbol * A.pos) option, init: A.exp, pos: A.pos}
+  | ty of A.ty | tyfields of A.field list | funargs of A.exp list | recordargs of (A.symbol * A.exp * A.pos) list
 
 %pos int
 %verbose
@@ -45,20 +53,20 @@
 
 %%
 
-program : exp                                            ()
+program : exp                                            (exp)
 
-decs : dec decs                                          ()
-    | dec                                                ()
-
+decs : dec decs                                          (dec :: decs)
+    | dec                                                (dec :: nil)
 
 dec : tydec                                              ()
     | vardec                                             ()
     | fundec                                             ()
+    |                                                    (nil)
 
 tydec : TYPE ID EQ ty                                    ()
 
 ty : ID                                                  ()
-    | LBRACE RBRACE  		                             ()
+    | LBRACE RBRACE                                      ()
     | LBRACE tyfields RBRACE                             ()
     | ARRAY OF ID                                        ()
 
@@ -69,7 +77,7 @@ vardec : VAR ID ASSIGN exp                               ()
     | VAR ID COLON ID ASSIGN exp                         ()
 
 fundec : FUNCTION ID LPAREN tyfields RPAREN EQ exp       ()
-     | FUNCTION ID LPAREN RPAREN EQ exp                  ()
+    | FUNCTION ID LPAREN RPAREN EQ exp                   ()
     | FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ exp ()
     | FUNCTION ID LPAREN RPAREN COLON ID EQ exp          ()
 
@@ -77,13 +85,13 @@ lvalue : ID                                              ()
     | lvalue DOT ID                                      ()
     | lvalue LBRACK exp RBRACK                           ()
 
-loop : WHILE exp DO exp                                  ()
-    | FOR ID ASSIGN exp TO exp DO exp                    ()
+whileloop : WHILE exp DO exp                             ()
+forloop : FOR ID ASSIGN exp TO exp DO exp                ()
         
 exp : INT                                                ()
     | STRING                                             ()
     | NIL                                                ()
-    | BREAK	                                             ()
+    | BREAK                                              ()
     | lvalue ASSIGN exp                                  ()
     | lvalue                                             ()
     | LET decs IN expseq END                             ()
@@ -93,7 +101,8 @@ exp : INT                                                ()
     | ID LBRACE RBRACE                                   ()
     | ID LBRACE recordargs RBRACE                        ()
     | cond                                               ()
-    | loop                                               ()
+    | whileloop                                          ()
+    | forloop                                            ()
     | exp AND exp                                        ()
     | exp OR exp                                         ()
     | exp EQ exp                                         ()
