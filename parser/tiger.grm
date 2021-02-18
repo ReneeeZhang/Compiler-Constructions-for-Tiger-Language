@@ -15,7 +15,7 @@
 %nonassoc IF FOR WHILE
 %nonassoc THEN TO
 %nonassoc ELSE DO
-%right OF
+%right OF ID
 %nonassoc ASSIGN
 %left OR
 %left AND
@@ -74,6 +74,7 @@ fundec : FUNCTION ID LPAREN tyfields RPAREN EQ exp       ()
     | FUNCTION ID LPAREN RPAREN COLON ID EQ exp          ()
 
 lvalue : ID                                              ()
+    | ID LBRACK exp RBRACK                               ()
     | lvalue DOT ID                                      ()
     | lvalue LBRACK exp RBRACK                           ()
 
@@ -89,7 +90,7 @@ exp : INT                                                ()
     | LET decs IN expseq END                             ()
     | ID LPAREN RPAREN                                   ()
     | ID LPAREN funargs RPAREN                           ()
-    | lvalue LBRACK exp RBRACK OF exp                    ()
+    | ID LBRACK exp RBRACK OF exp                        ()
     | ID LBRACE RBRACE                                   ()
     | ID LBRACE recordargs RBRACE                        ()
     | cond                                               ()
