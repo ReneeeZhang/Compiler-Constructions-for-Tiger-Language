@@ -126,7 +126,7 @@ fundec : FUNCTION ID LPAREN tyfields RPAREN EQ exp       (A.FunctionDec([{name =
 
 lvalue : ID                                              (A.SimpleVar(Symbol.symbol(ID), IDleft))
     | ID LBRACK exp RBRACK                               (A.SubscriptVar(A.SimpleVar(Symbol.symbol(ID), IDleft), exp, IDleft))
-    | lvalue DOT ID                                      (A.FieldVar(lvalue, Symbol.symbol(ID), IDleft))
+    | lvalue DOT ID                                      (A.FieldVar(lvalue, Symbol.symbol(ID), lvalueleft))
     | lvalue LBRACK exp RBRACK                           (A.SubscriptVar(lvalue, exp, lvalueleft))
 
 loop : WHILE exp DO exp                                  (A.WhileExp({test = exp1, body = exp2, pos = WHILEleft}))
@@ -142,7 +142,7 @@ exp : INT                                                (A.IntExp(INT))
     | NIL                                                (A.NilExp)
     | BREAK                                              (A.BreakExp(BREAKleft))
     | lvalue ASSIGN exp                                  (A.AssignExp({var=lvalue, exp=exp, pos=lvalueleft}))
-    | lvalue                                             (lvalue)
+    | lvalue                                             (A.VarExp(lvalue))
     | LET decs IN expseq END                             (A.LetExp({decs = group_at_let(decs), 
                                                                    body = expseq,
                                                                    pos = LETleft}))
