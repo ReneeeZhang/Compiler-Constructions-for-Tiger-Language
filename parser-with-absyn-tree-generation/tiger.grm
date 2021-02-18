@@ -124,12 +124,17 @@ fundec : FUNCTION ID LPAREN tyfields RPAREN EQ exp       (A.FunctionDec([{name =
                                                                           body = exp, 
                                                                           pos = FUNCTIONleft}]))
 
-lvalue : ID                                              ()
-    | lvalue DOT ID                                      ()
-    | lvalue LBRACK exp RBRACK                           ()
+lvalue : ID                                              (A.SimpleVar(Symbol.symbol(ID), IDleft))
+    | lvalue DOT ID                                      (A.FieldVar(lvalue, Symbol.symbol(ID), IDleft))
+    | lvalue LBRACK exp RBRACK                           (A.SubscriptVar(lvalue, exp, lvalueleft))
 
-loop : WHILE exp DO exp                                  ()
-    |  FOR ID ASSIGN exp TO exp DO exp                   ()
+loop : WHILE exp DO exp                                  (A.WhileExp({test = exp1, body = exp2, pos = WHILEleft}))
+    |  FOR ID ASSIGN exp TO exp DO exp                   (A.ForExp({var = Symbol.symbol(ID),
+                                                                    escape = ref false,
+                                                                    lo = exp1,
+                                                                    hi = exp2,
+                                                                    body = exp3,
+                                                                    pos = FORleft}))
         
 exp : INT                                                ()
     | STRING                                             ()
@@ -138,8 +143,8 @@ exp : INT                                                ()
     | lvalue ASSIGN exp                                  ()
     | lvalue                                             ()
     | LET decs IN expseq END                             (A.LetExp({decs = group_at_let(decs), 
-                                                                   body = expseq,
-                                                                   pos = LETleft}))
+                                                                    body = expseq,
+                                                                    pos = LETleft}))
     | ID LPAREN RPAREN                                   ()
     | ID LPAREN funargs RPAREN                           ()
     | lvalue LBRACK exp RBRACK OF exp                    ()
@@ -163,14 +168,21 @@ exp : INT                                                ()
     | LPAREN expseq RPAREN                               ()
     | LPAREN RPAREN                                      ()
 
-recordargs : ID EQ exp                                   ()
-    | recordargs COMMA ID EQ exp                         ()
+recordargs : ID EQ exp                                   ([(Symbol.symbol(ID), exp, IDleft)])
+    | recordargs COMMA ID EQ exp                         ((Symbol.symbol(ID), exp, IDleft) :: recordargs)
+    |                                                    ([])
 
-funargs : exp                                            ()
-    | exp COMMA funargs	                                 ()
+funargs : exp                                            ([exp])
+    | exp COMMA funargs	                                 (exp :: funargs)
 
-cond : IF exp THEN exp ELSE exp                          ()
-    | IF exp THEN exp                                    ()
+cond : IF exp THEN exp ELSE exp                          (A.IfExp({test = exp1,
+                                                                   then' = exp2,
+                                                                   else' = SOME(exp3),
+                                                                   pos = IFleft}))
+    | IF exp THEN exp                                    (A.IfExp({test = exp1,
+                                                                   then' = exp2,
+                                                                   else' = NONE,
+                                                                   pos = IFleft}))
 
-expseq : exp SEMICOLON expseq                            ()
-    | exp                                                ()
+expseq : exp SEMICOLON expseq                            (A.SeqExp(exp, expleft) :: expseq)
+    | exp                                                ([A.SeqExp(exp, expleft)])
