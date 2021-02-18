@@ -170,7 +170,6 @@ exp : INT                                                ()
 
 recordargs : ID EQ exp                                   ([(Symbol.symbol(ID), exp, IDleft)])
     | recordargs COMMA ID EQ exp                         ((Symbol.symbol(ID), exp, IDleft) :: recordargs)
-    |                                                    ([])
 
 funargs : exp                                            ([exp])
     | exp COMMA funargs	                                 (exp :: funargs)
