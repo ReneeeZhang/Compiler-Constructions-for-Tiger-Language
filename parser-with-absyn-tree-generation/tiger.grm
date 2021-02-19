@@ -47,6 +47,7 @@ fun group_at_let decs =
   | tyfields of {name: A.symbol, escape: bool ref, typ: A.symbol, pos: A.pos} list
   | funargs of A.exp list
   | recordargs of (A.symbol * A.exp * A.pos) list
+  | expseq_tail of (A.exp * A.pos) list
 
 %pos int
 %verbose
@@ -142,8 +143,8 @@ exp : INT                                                (A.IntExp(INT))
     | BREAK                                              (A.BreakExp(BREAKleft))
     | lvalue ASSIGN exp                                  (A.AssignExp({var=lvalue, exp=exp, pos=lvalueleft}))
     | lvalue                                             (A.VarExp(lvalue))
-    | LET decs IN expseq END                             (A.LetExp({decs = group_at_let(decs), 
-                                                                    body = A.SeqExp(expseq),
+    | LET decs IN exp END                                (A.LetExp({decs = group_at_let(decs), 
+                                                                    body = exp,
                                                                     pos = LETleft}))
     | ID LPAREN RPAREN                                   (A.CallExp({func=Symbol.symbol(ID), args=[], pos=IDleft}))
     | ID LPAREN funargs RPAREN                           (A.CallExp({func=Symbol.symbol(ID), args=funargs, pos=IDleft}))
@@ -166,6 +167,7 @@ exp : INT                                                (A.IntExp(INT))
     | exp DIVIDE exp                                     (A.OpExp({left=exp1, oper=A.DivideOp, right=exp2, pos=exp1left}))
     | MINUS exp         %prec UMINUS                     (A.OpExp({left=A.IntExp(0), oper=A.MinusOp, right=exp, pos=MINUSleft}))
     | LPAREN expseq RPAREN                               (A.SeqExp(expseq))
+    | LPAREN exp RPAREN                                  (exp)
     | LPAREN RPAREN                                      (A.SeqExp([]))
 
 recordargs : ID EQ exp                                   ([(Symbol.symbol(ID), exp, IDleft)])
@@ -183,5 +185,8 @@ cond : IF exp THEN exp ELSE exp                          (A.IfExp({test = exp1,
                                                                    else' = NONE,
                                                                    pos = IFleft}))
 
-expseq : exp SEMICOLON expseq                            ((exp, expleft) :: expseq)
+expseq_tail : exp SEMICOLON expseq_tail                  ((exp, expleft) :: expseq_tail)
     | exp                                                ([(exp, expleft)])
+
+expseq : exp SEMICOLON expseq_tail                       ((exp, expleft) :: expseq_tail)
+
