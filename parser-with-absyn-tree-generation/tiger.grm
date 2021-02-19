@@ -39,7 +39,7 @@ fun group_at_let decs =
   | lvalue of A.var
   | loop of A.exp
   | decs of A.dec list
-  | expseq of A.exp list
+  | expseq of (A.exp * A.pos) list
   | dec of A.dec
   | tydec of A.dec
   | fundec of A.dec
@@ -144,8 +144,8 @@ exp : INT                                                (A.IntExp(INT))
     | lvalue ASSIGN exp                                  (A.AssignExp({var=lvalue, exp=exp, pos=lvalueleft}))
     | lvalue                                             (A.VarExp(lvalue))
     | LET decs IN expseq END                             (A.LetExp({decs = group_at_let(decs), 
-                                                                   body = expseq,
-                                                                   pos = LETleft}))
+                                                                    body = A.SeqExp(expseq),
+                                                                    pos = LETleft}))
     | ID LPAREN RPAREN                                   (A.CallExp({func=Symbol.symbol(ID), args=[], pos=IDleft}))
     | ID LPAREN funargs RPAREN                           (A.CallExp({func=Symbol.symbol(ID), args=funargs, pos=IDleft}))
     | ID LBRACK exp RBRACK OF exp                        (A.ArrayExp({typ=Symbol.symbol(ID), size=exp1, init=exp2, pos=IDleft}))
@@ -166,7 +166,7 @@ exp : INT                                                (A.IntExp(INT))
     | exp TIMES exp                                      (A.OpExp({left=exp1, oper=A.TimesOp, right=exp2, pos=exp1left}))
     | exp DIVIDE exp                                     (A.OpExp({left=exp1, oper=A.DivideOp, right=exp2, pos=exp1left}))
     | MINUS exp         %prec UMINUS                     (A.OpExp({left=A.IntExp(0), oper=A.MinusOp, right=exp, pos=MINUSleft}))
-    | LPAREN expseq RPAREN                               (expseq)
+    | LPAREN expseq RPAREN                               (A.SeqExp(expseq))
     | LPAREN RPAREN                                      (A.SeqExp([]))
 
 recordargs : ID EQ exp                                   ([(Symbol.symbol(ID), exp, IDleft)])
@@ -184,5 +184,5 @@ cond : IF exp THEN exp ELSE exp                          (A.IfExp({test = exp1,
                                                                    else' = NONE,
                                                                    pos = IFleft}))
 
-expseq : exp SEMICOLON expseq                            (A.SeqExp(exp, expleft) :: expseq)
-    | exp                                                ([A.SeqExp(exp, expleft)])
+expseq : exp SEMICOLON expseq                            ((exp, expleft) :: expseq)
+    | exp                                                ([(exp, expleft)])
