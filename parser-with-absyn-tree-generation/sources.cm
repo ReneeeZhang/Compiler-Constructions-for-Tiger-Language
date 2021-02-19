@@ -2,6 +2,7 @@ Group is
 
 absyn.sml
 errormsg.sml
+prabsyn.sml
 table.sig
 table.sml
 symbol.sml

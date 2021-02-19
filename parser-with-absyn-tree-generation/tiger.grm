@@ -21,7 +21,6 @@ fun group_at_let decs =
   | FUNCTION | VAR | TYPE | UMINUS
 
 
-%nonassoc IF FOR WHILE
 %nonassoc THEN TO
 %nonassoc ELSE DO
 %right OF
