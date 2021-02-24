@@ -2,6 +2,13 @@
 *.tig
 *~
 
+# parser
+parser/.cm/**
+parser/runscript.sml
+parser-with-absyn-tree-generation/.cm/
+parser-with-absyn-tree-generation/runscript.sml
+*.grm.*
+
 # lexer
 lexer/.cm/**
 *.lex.sml
