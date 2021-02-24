@@ -48,6 +48,8 @@ fun group_at_let decs =
   | funargs of A.exp list
   | recordargs of (A.symbol * A.exp * A.pos) list
   | expseq_tail of (A.exp * A.pos) list
+  | expseq_in_let of (A.exp * A.pos) list
+  | expseq_in_let_tail of (A.exp * A.pos) list
 
 %pos int
 %verbose
@@ -143,8 +145,8 @@ exp : INT                                                (A.IntExp(INT))
     | BREAK                                              (A.BreakExp(BREAKleft))
     | lvalue ASSIGN exp                                  (A.AssignExp({var=lvalue, exp=exp, pos=lvalueleft}))
     | lvalue                                             (A.VarExp(lvalue))
-    | LET decs IN exp END                                (A.LetExp({decs = group_at_let(decs), 
-                                                                    body = exp,
+    | LET decs IN expseq_in_let END                                (A.LetExp({decs = group_at_let(decs), 
+                                                                    body = A.SeqExp(expseq_in_let),
                                                                     pos = LETleft}))
     | ID LPAREN RPAREN                                   (A.CallExp({func=Symbol.symbol(ID), args=[], pos=IDleft}))
     | ID LPAREN funargs RPAREN                           (A.CallExp({func=Symbol.symbol(ID), args=funargs, pos=IDleft}))
@@ -190,3 +192,8 @@ expseq_tail : exp SEMICOLON expseq_tail                  ((exp, expleft) :: exps
 
 expseq : exp SEMICOLON expseq_tail                       ((exp, expleft) :: expseq_tail)
 
+expseq_in_let : exp expseq_in_let_tail                   ((exp, expleft) :: expseq_in_let_tail)
+    |                                                    ([])
+
+expseq_in_let_tail : SEMICOLON exp expseq_in_let_tail    ((exp, expleft) :: expseq_in_let_tail)
+    |                                                    ([])
