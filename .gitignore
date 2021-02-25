@@ -2,6 +2,9 @@
 *.tig
 *~
 
+# typechecker
+typechecker/.cm/**
+
 # parser
 parser/.cm/**
 parser/runscript.sml
