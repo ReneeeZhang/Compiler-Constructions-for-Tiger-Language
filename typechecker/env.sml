@@ -1,7 +1,7 @@
 structure Env : ENV = 
 struct 
   type ty = Types.ty
-  type access = int 
+  type access = unit 
 
   fun basetypes () = Symbol.enter(Symbol.enter(Symbol.empty,
                      Symbol.symbol("int"), Types.INT), 
