@@ -4,6 +4,7 @@
 
 # typechecker
 typechecker/.cm/**
+typechecker/runscript.sml
 
 # parser
 parser/.cm/**
