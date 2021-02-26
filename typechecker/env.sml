@@ -3,16 +3,14 @@ struct
   type ty = Types.ty
   type access = unit 
 
-  fun basetypes () = Symbol.enter(Symbol.enter(Symbol.empty,
-                     Symbol.symbol("int"), Types.INT), 
-                     Symbol.symbol("string"), Types.STRING)
-
-  val base_tenv = basetypes()
+  val base_tenv =  Symbol.enter(Symbol.enter(Symbol.empty,
+                   Symbol.symbol("int"), Types.INT), 
+                   Symbol.symbol("string"), Types.STRING)
     
   datatype enventry = VarEntry of {ty: ty}
                     | FunEntry of {formals: ty list, result: ty}
 
-  fun basefuns () =
+  val base_venv =
     Symbol.enter(Symbol.enter(Symbol.enter(Symbol.enter(Symbol.enter(
     Symbol.enter(Symbol.enter(Symbol.enter(Symbol.enter(Symbol.enter(
     Symbol.empty, Symbol.symbol("print"), 
@@ -28,7 +26,5 @@ struct
     result=Types.STRING})),
     Symbol.symbol("not"), FunEntry({formals=[Types.INT], result=Types.INT})),
     Symbol.symbol("exit"), FunEntry({formals=[Types.INT], result=Types.NIL}))
-
-  val base_venv = basefuns()
 
 end
