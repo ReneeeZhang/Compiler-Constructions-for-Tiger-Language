@@ -66,9 +66,10 @@ struct
       | trexp (A.IntExp(intval)) = {exp=(), ty=Types.INT}
       | trexp (A.StringExp(stringval, pos)) = {exp=(), ty=Types.STRING}
       | trexp (A.NilExp) = {exp=(), ty = Types.NIL} 
+      | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
-      (*TODO: need to test typecheck across assign, waiting for seqexp*)
+      (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
           val {exp=exp1,ty=ty1} = trexp(exp)
@@ -77,13 +78,16 @@ struct
          (if ty1=ty2 then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.NIL})
         end
 
+        (*Let Exps*)
       | trexp (A.LetExp{decs,body,pos}) = 
         let val {venv=venv',tenv=tenv'} = transDecs(venv,tenv,decs)
         in transExp(venv',tenv',body)
         end
  
-      (*TODO: Non-empty seqexp*)
+        (*Seq Exps*)
       | trexp (A.SeqExp([])) = {exp=(), ty=Types.NIL}
+      | trexp (A.SeqExp([t])) = trexp (#1 t)
+      | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
 
       (*TODO: Field and subscript vars*)
       and trvar (A.SimpleVar(id, pos)) = 
