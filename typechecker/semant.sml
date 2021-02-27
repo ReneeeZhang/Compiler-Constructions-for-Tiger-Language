@@ -12,11 +12,13 @@ struct
 
   structure A = Absyn
   structure E = Env
+  structure S = Symbol
 
   fun checkint({exp,ty}, pos) = 
     case ty of Types.INT => ()
        | _ => ErrorMsg.error pos ("Integer Required")  
 
+  (*Fun for unwrapping Types.NAME*)
   fun gettype(Types.NAME(_, ref(SOME(ty)))) = ty
     | gettype(Types.NAME(_,ref(NONE))) = Types.NIL
     | gettype(Types.INT) = Types.INT
@@ -29,6 +31,8 @@ struct
 
   fun transExp (venv, tenv, exp : Absyn.exp) =
     let
+      (*TODO: still missing Call Record If While For Break Array exps*)
+      (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
                  (checkint(trexp left, pos); checkint(trexp right, pos);
                   {exp=(), ty=Types.INT})
@@ -62,17 +66,50 @@ struct
       | trexp (A.IntExp(intval)) = {exp=(), ty=Types.INT}
       | trexp (A.StringExp(stringval, pos)) = {exp=(), ty=Types.STRING}
       | trexp (A.NilExp) = {exp=(), ty = Types.NIL} 
-      | trexp (A.AssignExp{var, exp, pos}) = 
-                 (trexp(exp); trvar(var); {exp=(), ty = Types.NIL})
 
+      (*Nontrivial stuff*)
+      (*TODO: need to test typecheck across assign, waiting for seqexp*)
+      | trexp (A.AssignExp{var, exp, pos}) = 
+        let 
+          val {exp=exp1,ty=ty1} = trexp(exp)
+          val {exp=exp2,ty=ty2} = trvar(var)
+        in
+         (if ty1=ty2 then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.NIL})
+        end
+
+      | trexp (A.LetExp{decs,body,pos}) = 
+        let val {venv=venv',tenv=tenv'} = transDecs(venv,tenv,decs)
+        in transExp(venv',tenv',body)
+        end
+ 
+      (*TODO: Non-empty seqexp*)
+      | trexp (A.SeqExp([])) = {exp=(), ty=Types.NIL}
+
+      (*TODO: Field and subscript vars*)
       and trvar (A.SimpleVar(id, pos)) = 
-       (case Symbol.look(venv,id) of SOME(E.VarEntry{ty}) =>
+       (case S.look(venv,id) of SOME(E.VarEntry{ty}) =>
             {exp=(), ty = gettype ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable ");
                    {exp=(), ty=Types.INT}))
     in
       trexp(exp)
     end
+
+  (*Dec list, venv, tenv -> venv',tenv'*)
+  and transDecs (venv, tenv, []) = {venv=venv, tenv=tenv}
+    | transDecs (venv, tenv, h::t) = 
+        let val {venv=venv', tenv=tenv'} = transDecs(venv, tenv, t)
+        in transDec (venv', tenv', h)
+        end
+
+  (*Singleton dec, venv, tenv -> venv', tenv'*)
+  (*TODO: Type and fun decs*)  
+  and transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
+    let val {exp,ty} = transExp(venv,tenv,init)
+    in {tenv=tenv, venv=S.enter(venv,name,E.VarEntry{ty=ty})}
+    end
+
+  (*TODO: write transTy (see pg118) *)
 
   fun transProg (tree : Absyn.exp) = 
     (transExp(E.base_venv, E.base_tenv, tree);())
