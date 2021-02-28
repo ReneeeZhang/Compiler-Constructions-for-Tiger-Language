@@ -2,6 +2,7 @@ structure Semant :>
 sig 
   val transProg : Absyn.exp -> unit 
   val gettype : Types.ty -> Types.ty
+  
 end = 
 struct
 
@@ -31,7 +32,6 @@ struct
 
   fun transExp (venv, tenv, exp : Absyn.exp) =
     let
-      (*TODO: still missing Call Record If While For Break Array exps*)
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
                  (checkint(trexp left, pos); checkint(trexp right, pos);
@@ -69,6 +69,7 @@ struct
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
+      (*TODO: still missing Call Record If While For Break Array exps*)
       (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
@@ -78,13 +79,13 @@ struct
          (if ty1=ty2 then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.NIL})
         end
 
-        (*Let Exps*)
+      (*Let Exps*)
       | trexp (A.LetExp{decs,body,pos}) = 
         let val {venv=venv',tenv=tenv'} = transDecs(venv,tenv,decs)
         in transExp(venv',tenv',body)
         end
  
-        (*Seq Exps*)
+      (*Seq Exps*)
       | trexp (A.SeqExp([])) = {exp=(), ty=Types.NIL}
       | trexp (A.SeqExp([t])) = trexp (#1 t)
       | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
@@ -107,13 +108,28 @@ struct
         end
 
   (*Singleton dec, venv, tenv -> venv', tenv'*)
-  (*TODO: Type and fun decs*)  
+  (*TODO: Fun decs*)  
+  (*Var decs*)
   and transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
     let val {exp,ty} = transExp(venv,tenv,init)
     in {tenv=tenv, venv=S.enter(venv,name,E.VarEntry{ty=ty})}
     end
-
-  (*TODO: write transTy (see pg118) *)
+  (*Type Decs*)
+  | transDec (venv,tenv,A.TypeDec(ty_list)) = 
+    let 
+      fun add_types (tenv, []) = tenv
+        | add_types (tenv, {name,ty,pos}::t) = 
+            let val tenv' = add_types (tenv, t)
+            in S.enter(tenv', name, transTy(tenv', ty)) 
+            end
+    in
+      {venv=venv, tenv=add_types(tenv, ty_list)}
+    end
+  (*Absyn.ty -> Types.ty*)
+  and transTy (tenv, A.NameTy(absyn_ty)) = 
+    case S.look(tenv,(#1 absyn_ty)) of SOME(ty) => ty
+     | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.NIL)
+   
 
   fun transProg (tree : Absyn.exp) = 
     (transExp(E.base_venv, E.base_tenv, tree);())
