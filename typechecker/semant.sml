@@ -69,15 +69,53 @@ struct
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
-      (*TODO: still missing Call Record If While For Break Array exps*)
+      (*TODO: still missing Call Record While For Break exps*)
       (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
           val {exp=exp1,ty=ty1} = trexp(exp)
           val {exp=exp2,ty=ty2} = trvar(var)
         in
-         (if ty1=ty2 then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.NIL})
+         (if ty1=ty2 then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
         end
+
+      (*If Exps*)
+        | trexp (A.IfExp{test, then', else', pos}) = 
+          (case else' of SOME(expression) =>  
+            let 
+              val {exp=expthen, ty=tythen} = trexp(then')
+              val {exp=expelse, ty=tyelse} = trexp(valOf(else'))
+              val {exp=exptest, ty=tytest} = trexp(test)
+            in
+              (if tythen=tyelse then () else ErrorMsg.error pos ("Types mismatched");
+               if tytest=Types.INT then () else ErrorMsg.error pos ("Test requires type INT");
+               {exp=(), ty = tythen})
+            end
+          | NONE =>
+            let 
+              val {exp=expthen, ty=tythen} = trexp(then')
+              val {exp=exptest, ty=tytest} = trexp(test)
+            in
+              (if tythen=Types.UNIT then () else ErrorMsg.error pos ("If-then must return unit");
+               if tytest=Types.INT then () else ErrorMsg.error pos ("Test requires type INT");
+               {exp=(), ty=tythen})
+            end
+            )
+
+      (*Array Exps*)
+      | trexp(A.ArrayExp{typ, size, init, pos}) = 
+          let
+            val {exp=exp_size, ty=ty_size} = trexp(size)
+            val {exp=exp_init, ty=ty_init} = trexp(init)
+          in
+            (if ty_size = Types.INT then () else ErrorMsg.error pos ("Array size must be integer");
+             if ty_init = Types.INT then () else ErrorMsg.error pos ("Array init must be integer");
+             case S.look(tenv, typ) of SOME(Types.ARRAY(fields)) => {exp=(), ty=Types.ARRAY(fields)}
+                | SOME (_) => (ErrorMsg.error pos ("Non-array type"); {exp=(),
+                  ty=Types.UNIT})
+                | NONE => (ErrorMsg.error pos ("Undefined array type"); {exp=(),
+                  ty=Types.UNIT}))
+          end
 
       (*Let Exps*)
       | trexp (A.LetExp{decs,body,pos}) = 
@@ -86,16 +124,30 @@ struct
         end
  
       (*Seq Exps*)
-      | trexp (A.SeqExp([])) = {exp=(), ty=Types.NIL}
+      | trexp (A.SeqExp([])) = {exp=(), ty=Types.UNIT}
       | trexp (A.SeqExp([t])) = trexp (#1 t)
       | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
 
-      (*TODO: Field and subscript vars*)
+      (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
        (case S.look(venv,id) of SOME(E.VarEntry{ty}) =>
             {exp=(), ty = gettype ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable ");
                    {exp=(), ty=Types.INT}))
+      (* Array vars *)
+      | trvar (A.SubscriptVar(var, expression, pos)) = 
+        case trvar(var) of {exp=_, ty=Types.ARRAY(ty, un)} =>
+          let 
+            val {exp=var_exp, ty=var_ty} = trvar var
+            val {exp=exp_exp, ty=exp_ty} = trexp expression
+          in
+            (if exp_ty=Types.INT then () else ErrorMsg.error pos ("Array index must be int"); 
+             {exp=(), ty=ty})
+          end
+        | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT})
+
+        (* TODO: write field vars *)
+
     in
       trexp(exp)
     end
@@ -103,8 +155,8 @@ struct
   (*Dec list, venv, tenv -> venv',tenv'*)
   and transDecs (venv, tenv, []) = {venv=venv, tenv=tenv}
     | transDecs (venv, tenv, h::t) = 
-        let val {venv=venv', tenv=tenv'} = transDecs(venv, tenv, t)
-        in transDec (venv', tenv', h)
+        let val {venv=venv', tenv=tenv'} = transDec(venv, tenv, h)
+        in transDecs (venv', tenv', t)
         end
 
   (*Singleton dec, venv, tenv -> venv', tenv'*)
@@ -114,6 +166,7 @@ struct
     let val {exp,ty} = transExp(venv,tenv,init)
     in {tenv=tenv, venv=S.enter(venv,name,E.VarEntry{ty=ty})}
     end
+
   (*Type Decs*)
   | transDec (venv,tenv,A.TypeDec(ty_list)) = 
     let 
@@ -125,11 +178,14 @@ struct
     in
       {venv=venv, tenv=add_types(tenv, ty_list)}
     end
+
   (*Absyn.ty -> Types.ty*)
   and transTy (tenv, A.NameTy(absyn_ty)) = 
-    case S.look(tenv,(#1 absyn_ty)) of SOME(ty) => ty
-     | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.NIL)
-   
+    (case S.look(tenv,(#1 absyn_ty)) of SOME(ty) => ty
+     | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT))
+  | transTy (tenv, A.ArrayTy(absyn_ty)) = 
+    case S.look(tenv, (#1 absyn_ty)) of SOME(ty) => Types.ARRAY(ty, ref())
+       | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)  
 
   fun transProg (tree : Absyn.exp) = 
     (transExp(E.base_venv, E.base_tenv, tree);())
