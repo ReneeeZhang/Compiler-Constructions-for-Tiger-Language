@@ -9,8 +9,9 @@ struct
           | INT
           | STRING
           | ARRAY of ty * unique
-	  | NAME of Symbol.symbol * ty option ref
-	  | UNIT
+          | ARROW of ty list * ty (* function type: arguments * return *)
+	        | NAME of Symbol.symbol * ty option ref
+	        | UNIT
 
 end
 
