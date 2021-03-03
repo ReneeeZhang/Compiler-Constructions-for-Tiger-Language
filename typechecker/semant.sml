@@ -69,7 +69,7 @@ struct
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
-      (*TODO: still missing Call Record While For Break exps*)
+      (*TODO: still missing Call Record Break exps*)
       (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
@@ -78,6 +78,31 @@ struct
         in
          (if ty1=ty2 then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
         end
+
+      (*While exps*)
+        | trexp (A.WhileExp{test, body, pos}) = 
+          let
+            val {exp=exp_test, ty=ty_test} = trexp(test)
+            val {exp=exp_body, ty=ty_body} = trexp(body)
+          in
+            (if ty_test=Types.INT then () else ErrorMsg.error pos ("Loop condition must be int");
+             if ty_body=Types.UNIT then () else ErrorMsg.error pos ("Loop body must be type unit");
+             {exp=(), ty=Types.UNIT})
+          end
+
+      (*For exps*)
+        | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
+          let 
+            val venv' = S.enter(venv, var, Env.VarEntry{ty=Types.INT})
+            val {exp=exp_lo, ty=ty_lo} = trexp(lo)
+            val {exp=exp_hi, ty=ty_hi} = trexp(hi)
+            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body)
+          in
+            (if ty_lo=Types.INT then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if ty_hi=Types.INT then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if ty_body=Types.UNIT then () else ErrorMsg.error pos ("Loop body must be type unit");
+             {exp=(), ty=Types.UNIT})
+          end
 
       (*If Exps*)
         | trexp (A.IfExp{test, then', else', pos}) = 
