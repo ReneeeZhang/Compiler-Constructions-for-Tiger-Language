@@ -191,6 +191,17 @@ struct
     let val {exp,ty} = transExp(venv,tenv,init)
     in {tenv=tenv, venv=S.enter(venv,name,E.VarEntry{ty=ty})}
     end
+  | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}) =
+    let 
+      val {exp,ty} = transExp(venv,tenv,init)
+      val test = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
+                   if label_ty=ty then () else ErrorMsg.error pos ("Mismatched type")
+                    | NONE => ErrorMsg.error pos ("Undefined type")
+    in
+      {tenv=tenv, venv=S.enter(venv,name,E.VarEntry{ty=ty})}
+    end
+        
+   
 
   (*Type Decs*)
   | transDec (venv,tenv,A.TypeDec(ty_list)) = 
