@@ -9,9 +9,6 @@ struct
   val base_tenv =  S.enter(S.enter(S.empty,
                    S.symbol("int"), T.INT), 
                    S.symbol("string"), T.STRING)
-    
-  (* datatype enventry = VarEntry of {ty: ty}
-                    | FunEntry of {formals: ty list, result: ty} *)
 			  
   val base_venv =
     let val venv1 = S.enter(S.empty, S.symbol("print"), {access=(), ty=T.ARROW([T.STRING], T.NIL)})
