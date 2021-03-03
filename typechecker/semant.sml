@@ -93,7 +93,7 @@ struct
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
           let 
-            val venv' = S.enter(venv, var, Env.VarEntry{ty=Types.INT})
+            val venv' = S.enter(venv, var, {access=(), ty=Types.INT})
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body)
@@ -155,7 +155,7 @@ struct
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
-       (case S.look(venv,id) of SOME(E.VarEntry{ty}) =>
+       (case S.look(venv,id) of SOME({access=(), ty=ty}) =>
             {exp=(), ty = gettype ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable ");
                    {exp=(), ty=Types.INT}))
@@ -189,7 +189,7 @@ struct
   (*Var decs*)
   and transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
     let val {exp,ty} = transExp(venv,tenv,init)
-    in {tenv=tenv, venv=S.enter(venv,name,E.VarEntry{ty=ty})}
+    in {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
     end
 
   (*Type Decs*)

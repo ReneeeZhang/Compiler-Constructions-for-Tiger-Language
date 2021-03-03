@@ -4,8 +4,7 @@ structure T = Types
 structure Env :> ENV = 
 struct 
   type ty = T.ty
-  type access = unit
-  type enventry = {access: access, ty: ty} 
+  type enventry = {access: unit, ty: ty} 
 
   val base_tenv =  S.enter(S.enter(S.empty,
                    S.symbol("int"), T.INT), 
