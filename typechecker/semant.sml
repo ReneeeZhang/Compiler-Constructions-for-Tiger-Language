@@ -1,8 +1,6 @@
 structure Semant :> 
 sig 
-  val transProg : Absyn.exp -> unit 
-  val gettype : Types.ty -> Types.ty
-  
+  val transProg : Absyn.exp -> unit   
 end = 
 struct
 
@@ -30,7 +28,7 @@ struct
     | gettype(Types.ARRAY(ty, un)) = Types.ARRAY(ty, un)
 
 
-  fun transExp (venv, tenv, exp : Absyn.exp) =
+  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
     let
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
@@ -69,7 +67,7 @@ struct
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
-      (*TODO: still missing Call Record Break exps*)
+      (*TODO: still missing Call Record exps, breaks within functions*)
       (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
@@ -83,7 +81,7 @@ struct
         | trexp (A.WhileExp{test, body, pos}) = 
           let
             val {exp=exp_test, ty=ty_test} = trexp(test)
-            val {exp=exp_body, ty=ty_body} = trexp(body)
+            val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body, SOME(()))
           in
             (if ty_test=Types.INT then () else ErrorMsg.error pos ("Loop condition must be int");
              if ty_body=Types.UNIT then () else ErrorMsg.error pos ("Loop body must be type unit");
@@ -96,13 +94,19 @@ struct
             val venv' = S.enter(venv, var, Env.VarEntry{ty=Types.INT})
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
-            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body)
+            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, SOME(()))
           in
             (if ty_lo=Types.INT then () else ErrorMsg.error pos ("Loop bounds must be int");
              if ty_hi=Types.INT then () else ErrorMsg.error pos ("Loop bounds must be int");
              if ty_body=Types.UNIT then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
+
+      (*Break Exps*)
+        | trexp(A.BreakExp(pos)) = 
+          (case isLoop of SOME(()) => {exp=(), ty=Types.UNIT}
+             | NONE => (ErrorMsg.error pos ("Break must be inside loop");
+               {exp=(), ty=Types.UNIT}))
 
       (*If Exps*)
         | trexp (A.IfExp{test, then', else', pos}) = 
@@ -145,7 +149,7 @@ struct
       (*Let Exps*)
       | trexp (A.LetExp{decs,body,pos}) = 
         let val {venv=venv',tenv=tenv'} = transDecs(venv,tenv,decs)
-        in transExp(venv',tenv',body)
+        in transExp(venv',tenv',body,NONE)
         end
  
       (*Seq Exps*)
@@ -188,12 +192,12 @@ struct
   (*TODO: Fun decs*)  
   (*Var decs*)
   and transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
-    let val {exp,ty} = transExp(venv,tenv,init)
+    let val {exp,ty} = transExp(venv,tenv,init,NONE)
     in {tenv=tenv, venv=S.enter(venv,name,E.VarEntry{ty=ty})}
     end
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}) =
     let 
-      val {exp,ty} = transExp(venv,tenv,init)
+      val {exp,ty} = transExp(venv,tenv,init,NONE)
       val test = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
                    if label_ty=ty then () else ErrorMsg.error pos ("Mismatched type")
                     | NONE => ErrorMsg.error pos ("Undefined type")
@@ -224,6 +228,6 @@ struct
        | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)  
 
   fun transProg (tree : Absyn.exp) = 
-    (transExp(E.base_venv, E.base_tenv, tree);())
+    (transExp(E.base_venv, E.base_tenv, tree,NONE);())
     
 end
