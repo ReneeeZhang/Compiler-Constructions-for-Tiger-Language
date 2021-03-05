@@ -11,5 +11,5 @@ struct
           | ARRAY of ty * unique
           | ARROW of ty list * ty (* function type: arguments * return *)
 	        | UNIT
-
+          | BOTTOM
 end
