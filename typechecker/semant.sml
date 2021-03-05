@@ -194,23 +194,36 @@ struct
 
   (*Type Decs*)
   | transDec (venv,tenv,A.TypeDec(ty_list)) = 
-    let 
-      fun add_types (tenv, []) = tenv
-        | add_types (tenv, {name,ty,pos}::t) = 
-            let val tenv' = add_types (tenv, t)
-            in S.enter(tenv', name, transTy(tenv', ty)) 
-            end
+    let fun add_types (tenv, types) =
+            case types of
+              [] => tenv
+            | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, transTy(tenv, ty))
+                                           in 
+                                              add_types(tenv', types')
+                                           end
     in
-      {venv=venv, tenv=add_types(tenv, ty_list)}
+        {venv=venv, tenv=add_types(tenv, ty_list)}
     end
 
   (*Absyn.ty -> Types.ty*)
   and transTy (tenv, A.NameTy(absyn_ty)) = 
-    (case S.look(tenv,(#1 absyn_ty)) of SOME(ty) => ty
-     | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT))
+    case S.look(tenv,(#1 absyn_ty)) of SOME(ty) => ty
+     | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)
   | transTy (tenv, A.ArrayTy(absyn_ty)) = 
     case S.look(tenv, (#1 absyn_ty)) of SOME(ty) => Types.ARRAY(ty, ref())
-       | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)  
+       | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)
+  | transTy (tenv, A.RecordTy(fields)) = (* fields: field list, in terms of Absyn *)
+    let fun iter_fields fields = (* ans: (symbol*ty) list, in terms of Types.RECORD *)
+            case fields of
+              [] => []
+            | f :: fields' => case S.look(tenv, (#typ f)) of
+                                SOME(ty) => ((#name f), ty) :: iter_fields fields'
+                              | NONE => (ErrorMsg.error (#pos f) ("Undefined type in a record field"); 
+                                         [])
+        val fields_in_types = iter_fields fields
+    in
+        Types.RECORD((fn () => fields_in_types), ref())
+    end 
 
   fun transProg (tree : Absyn.exp) = 
     (transExp(E.base_venv, E.base_tenv, tree);())
