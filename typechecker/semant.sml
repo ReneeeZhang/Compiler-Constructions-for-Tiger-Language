@@ -193,20 +193,56 @@ struct
     end
 
   (*Type Decs*)
-  | transDec (venv,tenv,A.TypeDec(ty_list)) = 
+  | transDec (venv,tenv,A.TypeDec(tydec_group)) = 
     let fun add_types (tenv, types) =
             case types of
               [] => tenv
-            | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, transTy(tenv, ty))
+            | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, transTy(tenv, tydec_group, ty))
                                            in 
                                               add_types(tenv', types')
                                            end
     in
-        {venv=venv, tenv=add_types(tenv, ty_list)}
+        {venv=venv, tenv=add_types(tenv, tydec_group)}
+    end
+
+  and transTy (tenv, tydec_group, absyn_ty) = 
+        (* function find_in_tydec_group looks for the type_sym in tydec_group (Absyn.TypeDec, a list), if it exists,
+           return SOME; Otherwise, NONE *)
+    let fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
+            let fun aux tydecs =
+                case tydecs of
+                    [] => NONE
+                  | tydec :: tydecs' => if (#name tydec) = type_sym
+                                        then SOME(#ty tydec)
+                                        else aux tydecs'
+            in
+                aux tydec_group
+            end
+
+        fun look_up_in_tenv(type_sym) = (* S.symbol -> Types.ty *)
+            case S.look(tenv, type_sym) of
+                SOME(ty) => ty
+              | NONE => (ErrorMsg.error 0 "Undefinied type: " ^ S.name(type_sym); Types.BOTTOM) (* TODO: pos is undefined *)
+        (* function proc basically find out name in ty_group in case of (mutual) recersion; if name does
+           occur in the ty_group, then look up in tenv *)
+        fun proc type_sym = (* S.symbol -> Types.ty *) 
+            case lookup_in_tydec_group type_sym of
+                NONE => lookup_in_tenv(type_sym) (* If not in the tydec_group, search in tenv *)
+              | SOME(ty) => address ty (* If in the tydec_group, then recursively call proc on each ty *)
+
+        and fun address ty = (* A.ty -> Types.ty *)
+            case ty of 
+                A.NameTy(sym, _) => proc(sym)
+              | A.ArrayTy(sym, _) => proc(sym)
+              | A.RecordTy(fields) => Types.RECORD(fn() => map 
+                                                           (fn {name, typ, ...} => (name, proc(typ))
+                                                           fields)
+    in
+        address absyn_ty
     end
 
   (*Absyn.ty -> Types.ty*)
-  and transTy (tenv, A.NameTy(absyn_ty)) = 
+  (* and transTy (tenv, A.NameTy(absyn_ty)) = 
     case S.look(tenv,(#1 absyn_ty)) of SOME(ty) => ty
      | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)
   | transTy (tenv, A.ArrayTy(absyn_ty)) = 
@@ -226,6 +262,6 @@ struct
     end 
 
   fun transProg (tree : Absyn.exp) = 
-    (transExp(E.base_venv, E.base_tenv, tree);())
+    (transExp(E.base_venv, E.base_tenv, tree);()) *)
     
 end
