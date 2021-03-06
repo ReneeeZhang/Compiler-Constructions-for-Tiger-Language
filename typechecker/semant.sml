@@ -14,6 +14,7 @@ struct
   structure A = Absyn
   structure E = Env
   structure S = Symbol
+  structure H = HashTable
 
   fun checkint({exp,ty}, pos) = 
     case ty of Types.INT => ()
@@ -197,7 +198,7 @@ struct
     let fun add_types (tenv, types) =
             case types of
               [] => tenv
-            | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, transTy(tenv, tydec_group, ty))
+            | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, transTy(tenv, name, tydec_group, ty))
                                            in 
                                               add_types(tenv', types')
                                            end
@@ -205,16 +206,19 @@ struct
         {venv=venv, tenv=add_types(tenv, tydec_group)}
     end
 
-  and transTy (tenv, tydec_group, absyn_ty) = 
+  and transTy (tenv, type_sym, tydec_group, absyn_ty) = 
         (* function find_in_tydec_group looks for the type_sym in tydec_group (Absyn.TypeDec, a list), if it exists,
            return SOME; Otherwise, NONE *)
-    let fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
+    let exception UNIQUE_RECORDS
+        val unique_records_map : (string, Types.unique) H.hash_table =
+            H.mkTable(HashString.hashString, op =) (128, UNIQUE_RECORDS)
+        fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
             let fun aux tydecs =
                 case tydecs of
                     [] => NONE
-                  | tydec :: tydecs' => if (#name tydec) = type_sym
-                                        then SOME(#ty tydec)
-                                        else aux tydecs'
+                  | {name, ty, pos} :: tydecs' => if name = type_sym
+                                                  then SOME(ty)
+                                                  else aux tydecs'
             in
                 aux tydec_group
             end
@@ -222,23 +226,47 @@ struct
         fun look_up_in_tenv(type_sym) = (* S.symbol -> Types.ty *)
             case S.look(tenv, type_sym) of
                 SOME(ty) => ty
-              | NONE => (ErrorMsg.error 0 "Undefinied type: " ^ S.name(type_sym); Types.BOTTOM) (* TODO: pos is undefined *)
+              | NONE => (ErrorMsg.error 0 ("Undefinied type: " ^ S.name(type_sym)); Types.BOTTOM) (* TODO: pos is undefined *)
+        
         (* function proc basically find out name in ty_group in case of (mutual) recersion; if name does
            occur in the ty_group, then look up in tenv *)
-        fun proc type_sym = (* S.symbol -> Types.ty *) 
+        fun proc(type_sym, unique_records_map) = (* S.symbol -> Types.ty *) 
             case lookup_in_tydec_group type_sym of
                 NONE => lookup_in_tenv(type_sym) (* If not in the tydec_group, search in tenv *)
-              | SOME(ty) => address ty (* If in the tydec_group, then recursively call proc on each ty *)
-
-        and fun address ty = (* A.ty -> Types.ty *)
-            case ty of 
-                A.NameTy(sym, _) => proc(sym)
-              | A.ArrayTy(sym, _) => proc(sym)
-              | A.RecordTy(fields) => Types.RECORD(fn() => map 
-                                                           (fn {name, typ, ...} => (name, proc(typ))
-                                                           fields)
+              | SOME(ty) => case ty of (* If in the tydec_group, then recursively call proc on each ty *)
+                                A.NameTy(sym, _) => proc(sym, unique_records_map)
+                              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym, unique_records_map), ref()) (* TODO: not always ref ()*)
+                              | A.RecordTy(fields) => 
+                                let val name = S.name(type_sym)
+                                    val rec_entry = H.find unique_records_map name
+                                in
+                                    Types.RECORD((fn() => map 
+                                                          (fn {name, typ, ...} => (name, proc(typ, unique_records_map)))
+                                                          fields), 
+                                                  case rec_entry of
+                                                      SOME(indicator) => indicator
+                                                    | NONE => let val new_indicator = ref ()
+                                                              in
+                                                                (
+                                                                    H.insert unique_records_map (name, new_indicator);
+                                                                    new_indicator
+                                                                )
+                                                              end
+                                                )
+                                end 
     in
-        address absyn_ty
+        case absyn_ty of 
+                A.NameTy(sym, _) => proc(sym, unique_records_map)
+              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym, unique_records_map), ref ()) (* TODO: not always ref ()*)
+              | A.RecordTy(fields) => let val indicator = ref ()
+                                      in
+                                          (
+                                            H.insert unique_records_map (S.name(type_sym), indicator);
+                                            Types.RECORD((fn() => map 
+                                                        (fn {name, typ, ...} => (name, proc(typ, unique_records_map)))
+                                                        fields), indicator)
+                                          )
+                                      end                                    
     end
 
   (*Absyn.ty -> Types.ty*)
@@ -260,8 +288,9 @@ struct
     in
         Types.RECORD((fn () => fields_in_types), ref())
     end 
+    *)
 
   fun transProg (tree : Absyn.exp) = 
-    (transExp(E.base_venv, E.base_tenv, tree);()) *)
+    (transExp(E.base_venv, E.base_tenv, tree);()) 
     
 end
