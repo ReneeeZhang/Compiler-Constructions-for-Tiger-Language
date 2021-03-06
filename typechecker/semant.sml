@@ -1,7 +1,7 @@
 structure Semant :> 
 sig 
   val transProg : Absyn.exp -> unit 
-  val gettype : Types.ty -> Types.ty
+  (* val gettype : Types.ty -> Types.ty *)
   
 end = 
 struct
@@ -21,14 +21,14 @@ struct
        | _ => ErrorMsg.error pos ("Integer Required")  
 
   (*Fun for unwrapping Types.NAME*)
-  fun gettype(Types.NAME(_, ref(SOME(ty)))) = ty
+  (* fun gettype(Types.NAME(_, ref(SOME(ty)))) = ty
     | gettype(Types.NAME(_,ref(NONE))) = Types.NIL
     | gettype(Types.INT) = Types.INT
     | gettype(Types.STRING) = Types.STRING
     | gettype(Types.UNIT) = Types.UNIT
     | gettype(Types.NIL) = Types.NIL
     | gettype(Types.RECORD(ls, un)) = Types.RECORD(ls, un)
-    | gettype(Types.ARRAY(ty, un)) = Types.ARRAY(ty, un)
+    | gettype(Types.ARRAY(ty, un)) = Types.ARRAY(ty, un) *)
 
 
   fun transExp (venv, tenv, exp : Absyn.exp) =
@@ -77,7 +77,7 @@ struct
           val {exp=exp1,ty=ty1} = trexp(exp)
           val {exp=exp2,ty=ty2} = trvar(var)
         in
-         (if ty1=ty2 then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
+         (if Types.are_the_same_type(ty1, ty2) then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
         end
 
       (*While exps*)
@@ -86,8 +86,8 @@ struct
             val {exp=exp_test, ty=ty_test} = trexp(test)
             val {exp=exp_body, ty=ty_body} = trexp(body)
           in
-            (if ty_test=Types.INT then () else ErrorMsg.error pos ("Loop condition must be int");
-             if ty_body=Types.UNIT then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.are_the_same_type(ty_test, Types.INT) then () else ErrorMsg.error pos ("Loop condition must be int");
+             if Types.are_the_same_type(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
 
@@ -99,9 +99,9 @@ struct
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body)
           in
-            (if ty_lo=Types.INT then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if ty_hi=Types.INT then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if ty_body=Types.UNIT then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.are_the_same_type(ty_lo, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if Types.are_the_same_type(ty_hi, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if Types.are_the_same_type(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
 
@@ -113,8 +113,8 @@ struct
               val {exp=expelse, ty=tyelse} = trexp(valOf(else'))
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if tythen=tyelse then () else ErrorMsg.error pos ("Types mismatched");
-               if tytest=Types.INT then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.are_the_same_type(tythen, tyelse) then () else ErrorMsg.error pos ("Types mismatched");
+               if Types.are_the_same_type(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
                {exp=(), ty = tythen})
             end
           | NONE =>
@@ -122,8 +122,8 @@ struct
               val {exp=expthen, ty=tythen} = trexp(then')
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if tythen=Types.UNIT then () else ErrorMsg.error pos ("If-then must return unit");
-               if tytest=Types.INT then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.are_the_same_type(tythen, Types.UNIT) then () else ErrorMsg.error pos ("If-then must return unit");
+               if Types.are_the_same_type(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
                {exp=(), ty=tythen})
             end
             )
@@ -134,8 +134,8 @@ struct
             val {exp=exp_size, ty=ty_size} = trexp(size)
             val {exp=exp_init, ty=ty_init} = trexp(init)
           in
-            (if ty_size = Types.INT then () else ErrorMsg.error pos ("Array size must be integer");
-             if ty_init = Types.INT then () else ErrorMsg.error pos ("Array init must be integer");
+            (if Types.are_the_same_type(ty_size, Types.INT) then () else ErrorMsg.error pos ("Array size must be integer");
+             if Types.are_the_same_type(ty_init, Types.INT) then () else ErrorMsg.error pos ("Array init must be integer");
              case S.look(tenv, typ) of SOME(Types.ARRAY(fields)) => {exp=(), ty=Types.ARRAY(fields)}
                 | SOME (_) => (ErrorMsg.error pos ("Non-array type"); {exp=(),
                   ty=Types.UNIT})
@@ -157,7 +157,7 @@ struct
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
        (case S.look(venv,id) of SOME({access=(), ty=ty}) =>
-            {exp=(), ty = gettype ty}
+            {exp=(), ty = ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable ");
                    {exp=(), ty=Types.INT}))
       (* Array vars *)
@@ -167,7 +167,7 @@ struct
             val {exp=var_exp, ty=var_ty} = trvar var
             val {exp=exp_exp, ty=exp_ty} = trexp expression
           in
-            (if exp_ty=Types.INT then () else ErrorMsg.error pos ("Array index must be int"); 
+            (if Types.are_the_same_type(exp_ty, Types.INT) then () else ErrorMsg.error pos ("Array index must be int"); 
              {exp=(), ty=ty})
           end
         | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT})
@@ -223,7 +223,7 @@ struct
                 aux tydec_group
             end
 
-        fun look_up_in_tenv(type_sym) = (* S.symbol -> Types.ty *)
+        fun lookup_in_tenv(type_sym) = (* S.symbol -> Types.ty *)
             case S.look(tenv, type_sym) of
                 SOME(ty) => ty
               | NONE => (ErrorMsg.error 0 ("Undefinied type: " ^ S.name(type_sym)); Types.BOTTOM) (* TODO: pos is undefined *)
