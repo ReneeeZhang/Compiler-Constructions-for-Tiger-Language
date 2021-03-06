@@ -22,5 +22,5 @@ struct
         | (BOTTOM, BOTTOM) => true
         | (ARRAY(arr1ty, u1), ARRAY(arr2ty, u2)) => (u1 = u2) andalso are_the_same_type(arr1ty, arr2ty) (* Probably don't need andalso *)
         | (RECORD(_, u1), RECORD(_, u2)) => u1 = u2
-        | _ => false
+        | _ => (print("Inconsistent types\n"); false)
 end
