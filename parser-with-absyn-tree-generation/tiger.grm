@@ -173,7 +173,7 @@ exp : INT                                                (A.IntExp(INT))
     | LPAREN RPAREN                                      (A.SeqExp([]))
 
 recordargs : ID EQ exp                                   ([(Symbol.symbol(ID), exp, IDleft)])
-    | recordargs COMMA ID EQ exp                         ((Symbol.symbol(ID), exp, IDleft) :: recordargs)
+    | ID EQ exp COMMA recordargs                         ((Symbol.symbol(ID), exp, IDleft) :: recordargs)
 
 funargs : exp                                            ([exp])
     | exp COMMA funargs	                                 (exp :: funargs)
