@@ -160,6 +160,34 @@ struct
       | trexp (A.SeqExp([t])) = trexp (#1 t)
       | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
 
+	  (*Call Exps*)
+	  | trexp (A.CallExp({func, args, pos})) =
+    let fun check_args_and_params_match(argexplist, paramlist) =
+      case (argexplist, paramlist) of
+      ([], []) => true
+      | ([argexp], [param]) => (
+        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in Types.are_the_same_type(param, ty_field_exp) end
+        )
+      | (argexp::argexplist', param::paramlist') => (
+        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in Types.are_the_same_type(param, ty_field_exp) end
+      ) andalso check_args_and_params_match(argexplist', paramlist')
+    in
+		(case S.look(venv, func) of
+			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty)}) => 
+				(if List.length func_param_ty_list <> List.length args then (
+                          ErrorMsg.error pos ("Function with " ^ Int.toString(List.length func_param_ty_list) ^ " parameters called with " ^ Int.toString(List.length args) ^ " arguments"); 
+                          {exp=(), ty=Types.BOTTOM}
+                          )
+						  else (
+							  if check_args_and_params_match(args, func_param_ty_list) then {exp=(), ty=return_ty}
+							  else  (ErrorMsg.error pos ("Function argument list types don't match expected parameters"); {exp=(), ty=Types.BOTTOM})
+						  )
+				)
+			| SOME(_) => (ErrorMsg.error pos ("Non-function symbol called"); {exp=(), ty=Types.BOTTOM})
+            | NONE => (ErrorMsg.error pos ("Undefined function name"); {exp=(), ty=Types.BOTTOM})
+		)
+    end
+
       (* Record Exp *)
       | trexp (A.RecordExp{fields, typ, pos}) = 
           case S.look(tenv, typ) of
@@ -285,6 +313,77 @@ struct
     in
         {venv=venv, tenv=add_types(tenv, tydec_group)}
     end
+
+  (*Single-function funcdec with 0 or more params*)
+  | transDec (venv,tenv,
+      A.FunctionDec([{name, params, body, pos,
+        result=SOME(rt,respos)}])) =
+      let val result_ty = case S.look(tenv,rt) of
+          SOME(rty) => rty
+          | NONE => (ErrorMsg.error pos ("Undefined return type in function definition"); T.UNIT)
+        fun transparam(absf:Absyn.field) = 
+            case S.look(tenv, #typ absf) of
+              SOME t => {name = #name absf, ty=t}
+              | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition"); {name = #name absf,ty=T.UNIT})
+        val params' = map transparam params
+        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
+        val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
+        val {exp=_,ty=bodytype} = transExp(venv, tenv, body, NONE)
+      in if Types.are_the_same_type(bodytype, result_ty) then () else ErrorMsg.error pos ("Function body type does not match specified return type"); {venv=venv',tenv=tenv}
+      end
+  
+  (*Single-procedure funcdec with 0 or more params*)
+  | transDec (venv,tenv,
+      A.FunctionDec([{name, params, body, pos,
+        result=NONE}])) =
+      let
+        fun transparam(absf:Absyn.field) = 
+            case S.look(tenv, #typ absf) of
+              SOME t => {name = #name absf, ty=t}
+              | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition at position " ^ Int.toString(pos)) ; {name = #name absf,ty=T.UNIT})
+        val params' = map transparam params
+        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
+        val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
+        val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
+      in if Types.are_the_same_type(bodytype, Types.NIL) then () else ErrorMsg.error pos ("Procedure body type must be NIL"); {venv=venv,tenv=tenv}
+      end
+  
+  (*funcdec with multiple functions/procedures*)
+  | transDec (venv,tenv, A.FunctionDec(otherfds)) =
+    processFunDecList(collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(otherfds)),tenv,A.FunctionDec(otherfds)) 
+  
+  and processFunDecList(venv,tenv, A.FunctionDec([])) = {venv=venv,tenv=tenv}
+  | processFunDecList(venv,tenv, A.FunctionDec([fd])) = transDec(venv,tenv,A.FunctionDec([fd]))
+  | processFunDecList(venv,tenv, A.FunctionDec(fd::otherfds)) =
+    (transDec(venv,tenv,A.FunctionDec([fd])); processFunDecList(venv,tenv,A.FunctionDec(otherfds)))
+
+  
+  and collectHeadersFromFunDecList(venv, tenv, A.FunctionDec([])) = venv
+  | collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(fundeclist)) =
+    foldl (fn(fundec, venv) => S.enter(venv, #name fundec, getFunDecHeader(fundec, tenv))) venv fundeclist
+  
+  and getFunDecHeader({name, params, body, pos,
+        result=NONE}, tenv) =
+      let
+        fun transparam(absf:Absyn.field) = 
+            case S.look(tenv, #typ absf) of
+              SOME t => {name = #name absf, ty=t}
+              | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition at position " ^ Int.toString(pos)); {name = #name absf,ty=T.UNIT})
+        val params' = map transparam params
+      in {access=(), ty=T.ARROW(map #ty params', T.NIL)}
+      end
+    | getFunDecHeader({name, params, body, pos,
+        result=SOME(rt,pos')}, tenv) =
+        let val result_ty = case S.look(tenv,rt) of
+            SOME(rty) => rty
+            | NONE => (ErrorMsg.error pos ("Undefined return type in function definition"); T.UNIT)
+          fun transparam(absf:Absyn.field) = 
+              case S.look(tenv, #typ absf) of
+                SOME t => {name = #name absf, ty=t}
+                | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition"); {name = #name absf,ty=T.UNIT})
+          val params' = map transparam params
+        in {access=(), ty=T.ARROW(map #ty params', result_ty)}
+        end
 
   and transTy (tenv, type_sym, tydec_group, absyn_ty) = 
         (* function find_in_tydec_group looks for the type_sym in tydec_group (Absyn.TypeDec, a list), if it exists,
