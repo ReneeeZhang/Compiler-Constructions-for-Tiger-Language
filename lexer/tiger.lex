@@ -73,6 +73,7 @@ asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
 <STR>\\n     => (strbuf := !strbuf ^ "\n"; continue());
 <STR>\\\"    => (strbuf := !strbuf ^ "\""; continue());
 <STR>\\[\n\t ]+\\   => (continue());
+<STR>\\[\n\t ]*[^\n\t ]+[\n\t ]*\\ => (ErrorMsg.error yypos ("Illegal whitespace character"); continue());
 <STR>\\\\   => (strbuf := !strbuf ^ "\\"; continue());
 <STR>\\"^"[a-z]     => (strbuf := !strbuf ^ yytext; continue());
 <STR>\\t  => (strbuf := !strbuf ^ "\t"; continue());
