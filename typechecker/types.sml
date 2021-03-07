@@ -13,6 +13,15 @@ struct
 	        | UNIT
           | BOTTOM
 
+  fun tostring(RECORD(fields)) = "record" 
+    | tostring(NIL) = "nil"
+    | tostring(INT) = "int"
+    | tostring(STRING) = "string"
+    | tostring(ARRAY(fields)) = "array"
+    | tostring(ARROW(fields)) = "arrow"
+    | tostring(UNIT) = "unit"
+    | tostring(BOTTOM) = "bottom"
+
   (* TODO: should add subtype logic *)
   fun are_the_same_type(ty1, ty2) = (* ty * ty -> bool *)
       case (ty1, ty2) of

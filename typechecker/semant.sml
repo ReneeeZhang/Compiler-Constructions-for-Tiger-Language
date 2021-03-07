@@ -345,7 +345,9 @@ struct
         fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
         val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
-      in if Types.are_the_same_type(bodytype, Types.NIL) then () else ErrorMsg.error pos ("Procedure body type must be NIL"); {venv=venv,tenv=tenv}
+      in if Types.are_the_same_type(bodytype, Types.UNIT) then () else
+        ErrorMsg.error pos ("Procedure body type must be UNIT " ^
+        Types.tostring(bodytype)); {venv=venv,tenv=tenv}
       end
   
   (*funcdec with multiple functions/procedures*)
@@ -370,7 +372,7 @@ struct
               SOME t => {name = #name absf, ty=t}
               | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition at position " ^ Int.toString(pos)); {name = #name absf,ty=T.UNIT})
         val params' = map transparam params
-      in {access=(), ty=T.ARROW(map #ty params', T.NIL)}
+      in {access=(), ty=T.ARROW(map #ty params', T.UNIT)}
       end
     | getFunDecHeader({name, params, body, pos,
         result=SOME(rt,pos')}, tenv) =
