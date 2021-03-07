@@ -91,6 +91,18 @@ struct
              {exp=(), ty=Types.UNIT})
           end
 
+          (* | trexp (A.WhileExp{test, body, pos}) = 
+          let
+            val {exp=exp_test, ty=ty_test} = trexp(test)
+            val {exp=exp_body, ty=ty_body} = trexp(body)
+          in
+            if Types.are_the_same_type(ty_test, Types.INT) 
+            then if Types.are_the_same_type(ty_body, Types.UNIT) 
+                 then {exp=(), ty=Types.UNIT})
+                 else (ErrorMsg.error pos ("Loop body must be type unit"); {exp=(), ty=Types.BOTTOM})
+            else (ErrorMsg.error pos ("Loop condition must be int"); {exp=(), ty=Types.BOTTOM})
+          end *)
+
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
           let 
@@ -138,9 +150,9 @@ struct
              if Types.are_the_same_type(ty_init, Types.INT) then () else ErrorMsg.error pos ("Array init must be integer");
              case S.look(tenv, typ) of SOME(Types.ARRAY(fields)) => {exp=(), ty=Types.ARRAY(fields)}
                 | SOME (_) => (ErrorMsg.error pos ("Non-array type"); {exp=(),
-                  ty=Types.UNIT})
+                  ty=Types.BOTTOM})
                 | NONE => (ErrorMsg.error pos ("Undefined array type"); {exp=(),
-                  ty=Types.UNIT}))
+                  ty=Types.BOTTOM}))
           end
 
       (*Let Exps*)
@@ -153,6 +165,51 @@ struct
       | trexp (A.SeqExp([])) = {exp=(), ty=Types.UNIT}
       | trexp (A.SeqExp([t])) = trexp (#1 t)
       | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
+
+      (* Record Exp *)
+      | trexp (A.RecordExp{fields, typ, pos}) = 
+          case S.look(tenv, typ) of
+              SOME(Types.RECORD(thunk, u)) => 
+              let val given_fields = thunk()
+                  fun compare_fields(decl_fields, given_fields) = 
+                      if List.length(decl_fields) <> List.length(given_fields) (* 2 field lists with inconsistent length --> error *)
+                      then (
+                            ErrorMsg.error pos (S.name(typ) ^ " does not have the same number of fields as declared in record exp."); 
+                            {exp=(), ty=Types.BOTTOM}
+                            )
+                      else let fun aux(decl_fields, given_fields) = 
+                                  case (decl_fields, given_fields) of
+                                      ([], []) => {exp=(), ty=Types.RECORD(thunk, u)}
+                                    | ((s1, e, p)::decl_fields', (s2, ty)::given_fields') => 
+                                      if s1 = s2
+                                      then let val {exp=_, ty=ty_field_exp} = trexp(e)
+                                            in
+                                              if Types.are_the_same_type(ty, ty_field_exp)
+                                              then aux(decl_fields', given_fields')
+                                              else ( (* Field types are inconsistent *)
+                                                  ErrorMsg.error p ("Types of field " ^ S.name(s1) ^ " are not consistent in the record exp."); 
+                                                  {exp=(), ty=Types.BOTTOM}
+                                              )
+                                            end
+                                      else ( (* Field names are inconsistent *)
+                                        ErrorMsg.error p (S.name(s1) ^ " should have the same field name as " ^ S.name(s2) ^ " in the record exp."); 
+                                        {exp=(), ty=Types.BOTTOM}
+                                      )
+                                    | _ => {exp=(), ty=Types.BOTTOM} (* This won't happen because the length of 2 argv is promised to be the same *)
+                            in
+                                aux(decl_fields, given_fields)
+                            end
+              in
+                  compare_fields(fields, given_fields)                       
+              end
+            | SOME(_) => (
+                          ErrorMsg.error pos ("Non-record type"); 
+                          {exp=(), ty=Types.BOTTOM}
+                          )
+            | NONE => (
+                        ErrorMsg.error pos ("Undefined record type");
+                        {exp=(), ty=Types.BOTTOM}
+                      )
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
