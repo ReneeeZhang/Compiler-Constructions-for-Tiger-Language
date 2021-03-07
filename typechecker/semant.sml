@@ -211,9 +211,10 @@ struct
             {exp=(), ty = ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable ");
                    {exp=(), ty=Types.INT}))
+
       (* Array vars *)
       | trvar (A.SubscriptVar(var, expression, pos)) = 
-        case trvar(var) of {exp=_, ty=Types.ARRAY(ty, un)} =>
+        (case trvar(var) of {exp=_, ty=Types.ARRAY(ty, un)} =>
           let 
             val {exp=var_exp, ty=var_ty} = trvar var
             val {exp=exp_exp, ty=exp_ty} = trexp expression
@@ -221,10 +222,26 @@ struct
             (if Types.are_the_same_type(exp_ty, Types.INT) then () else ErrorMsg.error pos ("Array index must be int"); 
              {exp=(), ty=ty})
           end
-        | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT})
+        | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT}))
 
-      (* TODO: write field vars *)
-
+      (* Field vars *)
+      | trvar (A.FieldVar(var, name, pos)) = 
+        let 
+          fun findfield([]) = (ErrorMsg.error pos ("Undefined record field");
+          Types.BOTTOM)
+            | findfield((fname,ty)::fieldlist) = if fname=name then ty else findfield(fieldlist)
+          val {exp, ty} = trvar var
+        in
+          (case ty of Types.RECORD(recfun,un) =>
+            let
+              val fieldlist = recfun()
+            in
+              {exp=(), ty=findfield(fieldlist)}
+            end
+             | _ => (ErrorMsg.error pos ("Not a record type"); {exp=(),
+               ty=Types.BOTTOM}))         
+        end
+ 
 
     in
       trexp(exp)
