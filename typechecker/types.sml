@@ -13,6 +13,7 @@ struct
 	        | UNIT
           | BOTTOM
 
+  (* TODO: should add subtype logic *)
   fun are_the_same_type(ty1, ty2) = (* ty * ty -> bool *)
       case (ty1, ty2) of
           (INT, INT) => true
@@ -20,7 +21,7 @@ struct
         | (STRING, STRING) => true
         | (UNIT, UNIT) => true
         | (BOTTOM, BOTTOM) => true
-        | (ARRAY(arr1ty, u1), ARRAY(arr2ty, u2)) => (u1 = u2) andalso are_the_same_type(arr1ty, arr2ty) (* Probably don't need andalso *)
+        | (ARRAY(_, u1), ARRAY(_, u2)) => u1 = u2
         | (RECORD(_, u1), RECORD(_, u2)) => u1 = u2
         | _ => (print("Inconsistent types\n"); false)
 end
