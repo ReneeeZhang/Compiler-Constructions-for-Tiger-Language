@@ -21,9 +21,14 @@ struct
   structure SS = SymbolSet
   
   fun checkint({exp,ty}, pos) = 
-    case ty of Types.INT => ()
-       | _ => ErrorMsg.error pos ("Integer Required")  
+    (case ty of Types.INT => ()
+       | _ => ErrorMsg.error pos ("Integer Required"))  
 
+  fun check_eq_args({exp=(), ty=Types.INT}, {exp=(), ty=Types.INT},pos) = {exp=(), ty=Types.INT}
+    | check_eq_args({exp=(), ty=Types.STRING}, {exp=(), ty=Types.STRING},pos) =
+    {exp=(), ty=Types.INT}
+    | check_eq_args({exp=(),ty=_}, {exp=(),ty=_},pos) = (ErrorMsg.error pos 
+    ("Comparison operators must be string-string or int-int"); {exp=(), ty=Types.BOTTOM})
 
   fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
     let
@@ -40,24 +45,12 @@ struct
       | trexp (A.OpExp{left,oper=A.DivideOp,right,pos}) = 
                  (checkint(trexp left, pos); checkint(trexp right, pos);
                   {exp=(), ty=Types.INT})
-      | trexp (A.OpExp{left,oper=A.LeOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
-      | trexp (A.OpExp{left,oper=A.LtOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
-      | trexp (A.OpExp{left,oper=A.GeOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
-      | trexp (A.OpExp{left,oper=A.GtOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
-      | trexp (A.OpExp{left,oper=A.EqOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
-      | trexp (A.OpExp{left,oper=A.NeqOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
+      | trexp (A.OpExp{left,oper=A.LeOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
+      | trexp (A.OpExp{left,oper=A.LtOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
+      | trexp (A.OpExp{left,oper=A.GeOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
+      | trexp (A.OpExp{left,oper=A.GtOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
+      | trexp (A.OpExp{left,oper=A.EqOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
+      | trexp (A.OpExp{left,oper=A.NeqOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
       | trexp (A.IntExp(intval)) = {exp=(), ty=Types.INT}
       | trexp (A.StringExp(stringval, pos)) = {exp=(), ty=Types.STRING}
       | trexp (A.NilExp) = {exp=(), ty = Types.NIL} 
@@ -71,7 +64,7 @@ struct
           val {exp=exp1,ty=ty1} = trexp(exp)
           val {exp=exp2,ty=ty2} = trvar(var)
         in
-         (if Types.is_subtype_of(ty1, ty2) then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
+         (if Types.is_subtype_of(ty1, ty2,pos) then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
         end
 
       (*While exps*)
@@ -80,8 +73,8 @@ struct
             val {exp=exp_test, ty=ty_test} = trexp(test)
             val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body, SOME(()))
           in
-            (if Types.is_subtype_of(ty_test, Types.INT) then () else ErrorMsg.error pos ("Loop condition must be int");
-             if Types.is_subtype_of(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.is_subtype_of(ty_test, Types.INT,pos) then () else ErrorMsg.error pos ("Loop condition must be int");
+             if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
 
@@ -105,9 +98,9 @@ struct
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, SOME(()))
           in
-            (if Types.is_subtype_of(ty_lo, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if Types.is_subtype_of(ty_hi, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if Types.is_subtype_of(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.is_subtype_of(ty_lo, Types.INT,pos) then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if Types.is_subtype_of(ty_hi, Types.INT,pos) then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
 
@@ -125,8 +118,8 @@ struct
               val {exp=expelse, ty=tyelse} = trexp(valOf(else'))
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if Types.is_subtype_of(tythen, tyelse) then () else ErrorMsg.error pos ("Types mismatched");
-               if Types.is_subtype_of(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.is_subtype_of(tythen, tyelse,pos) then () else ErrorMsg.error pos ("Types mismatched");
+               if Types.is_subtype_of(tytest, Types.INT,pos) then () else ErrorMsg.error pos ("Test requires type INT");
                {exp=(), ty = tythen})
             end
           | NONE =>
@@ -134,8 +127,8 @@ struct
               val {exp=expthen, ty=tythen} = trexp(then')
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if Types.is_subtype_of(tythen, Types.UNIT) then () else ErrorMsg.error pos ("If-then must return unit");
-               if Types.is_subtype_of(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.is_subtype_of(tythen, Types.UNIT,pos) then () else ErrorMsg.error pos ("If-then must return unit");
+               if Types.is_subtype_of(tytest, Types.INT,pos) then () else ErrorMsg.error pos ("Test requires type INT");
                {exp=(), ty=tythen})
             end
             )
@@ -146,8 +139,8 @@ struct
             val {exp=exp_size, ty=ty_size} = trexp(size)
             val {exp=exp_init, ty=ty_init} = trexp(init)
           in
-            (if Types.is_subtype_of(ty_size, Types.INT) then () else ErrorMsg.error pos ("Array size must be integer");
-             if Types.is_subtype_of(ty_init, Types.INT) then () else ErrorMsg.error pos ("Array init must be integer");
+            (if Types.is_subtype_of(ty_size, Types.INT,pos) then () else ErrorMsg.error pos ("Array size must be integer");
+             if Types.is_subtype_of(ty_init, Types.INT,pos) then () else ErrorMsg.error pos ("Array init must be integer");
              case S.look(tenv, typ) of SOME(Types.ARRAY(fields)) => {exp=(), ty=Types.ARRAY(fields)}
                 | SOME (_) => (ErrorMsg.error pos ("Non-array type"); {exp=(),
                   ty=Types.BOTTOM})
@@ -172,10 +165,12 @@ struct
       case (argexplist, paramlist) of
       ([], []) => true
       | ([argexp], [param]) => (
-        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in Types.are_the_same_type(param, ty_field_exp) end
+        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in
+          Types.are_the_same_type(param, ty_field_exp,pos) end
         )
       | (argexp::argexplist', param::paramlist') => (
-        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in Types.are_the_same_type(param, ty_field_exp) end
+        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in
+          Types.are_the_same_type(param, ty_field_exp, pos) end
       ) andalso check_args_and_params_match(argexplist', paramlist')
     in
 		(case S.look(venv, func) of
@@ -189,8 +184,10 @@ struct
 							  else  (ErrorMsg.error pos ("Function argument list types don't match expected parameters"); {exp=(), ty=Types.BOTTOM})
 						  )
 				)
-			| SOME(_) => (ErrorMsg.error pos ("Non-function symbol called"); {exp=(), ty=Types.BOTTOM})
-            | NONE => (ErrorMsg.error pos ("Undefined function name"); {exp=(), ty=Types.BOTTOM})
+			| SOME(_) => (ErrorMsg.error pos ("Non-function symbol called: " ^
+            S.name(func)); {exp=(), ty=Types.BOTTOM})
+            | NONE => (ErrorMsg.error pos ("Undefined function name: " ^
+            S.name(func)); {exp=(), ty=Types.BOTTOM})
 		)
     end
 
@@ -212,8 +209,10 @@ struct
                                       if s1 = s2
                                       then let val {exp=_, ty=ty_field_exp} = trexp(e)
                                             in
-                                              if Types.is_subtype_of(ty, ty_field_exp)
-                                              then aux(decl_fields', given_fields')
+                                              if Types.is_subtype_of(ty,
+                                              ty_field_exp,pos)
+                                              then aux(decl_fields',
+                                              given_fields')
                                               else ( (* Field types are inconsistent *)
                                                   
                                                   ErrorMsg.error p (S.name(typ) ^ "'s field " ^ S.name(s1) ^ "'s type is not consistent with the declared in the record exp."); 
@@ -245,7 +244,7 @@ struct
       and trvar (A.SimpleVar(id, pos)) = 
        (case S.look(venv,id) of SOME({access=(), ty=ty}) =>
             {exp=(), ty = ty}
-        | NONE => (ErrorMsg.error pos ("Undefined Variable ");
+        | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
                    {exp=(), ty=Types.INT}))
 
       (* Array vars *)
@@ -255,7 +254,7 @@ struct
             val {exp=var_exp, ty=var_ty} = trvar var
             val {exp=exp_exp, ty=exp_ty} = trexp expression
           in
-            (if Types.is_subtype_of(exp_ty, Types.INT) then () else ErrorMsg.error pos ("Array index must be int"); 
+            (if Types.is_subtype_of(exp_ty, Types.INT,pos) then () else ErrorMsg.error pos ("Array index must be int"); 
              {exp=(), ty=ty})
           end
         | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT}))
@@ -274,7 +273,7 @@ struct
             in
               {exp=(), ty=findfield(fieldlist)}
             end
-             | _ => (ErrorMsg.error pos ("Not a record type"); {exp=(),
+             | _ => (ErrorMsg.error pos ("Not a record type: "^S.name(name)); {exp=(),
                ty=Types.BOTTOM}))         
         end
     in
@@ -299,7 +298,7 @@ struct
     let 
       val {exp,ty} = transExp(venv,tenv,init,NONE)
       val test = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
-                   if Types.are_the_same_type(label_ty,ty) then () else ErrorMsg.error pos ("Mismatched type")
+                   if Types.are_the_same_type(label_ty,ty,pos) then () else ErrorMsg.error pos ("Mismatched type")
                     | NONE => ErrorMsg.error pos ("Undefined type")
     in
       {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
@@ -333,11 +332,25 @@ struct
             case S.look(tenv, #typ absf) of
               SOME t => {name = #name absf, ty=t}
               | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition"); {name = #name absf,ty=T.UNIT})
+        fun get_types([]) = []
+          | get_types((h : Absyn.field)::(t : Absyn.field list)) = 
+            let 
+              val a = case S.look(tenv, #typ h) of 
+                           SOME t => t
+                         | NONE => Types.BOTTOM
+            in
+              a::get_types(t)
+            end
         val params' = map transparam params
+        val typelist = get_types(params)
         fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
-        val {exp=_,ty=bodytype} = transExp(venv, tenv, body, NONE)
-      in if Types.are_the_same_type(bodytype, result_ty) then () else ErrorMsg.error pos ("Function body type does not match specified return type"); {venv=venv',tenv=tenv}
+        val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
+        val venv'' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist,
+        result_ty)})
+      in if Types.are_the_same_type(bodytype, result_ty,pos) then () else
+        ErrorMsg.error pos ("Function body type does not match specified return type");
+        {venv=venv'',tenv=tenv}
       end
   
   (*Single-procedure funcdec with 0 or more params*)
@@ -353,7 +366,7 @@ struct
         fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
         val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
-      in if Types.are_the_same_type(bodytype, Types.UNIT) then () else
+      in if Types.are_the_same_type(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT " ^
         Types.tostring(bodytype)); {venv=venv,tenv=tenv}
       end
