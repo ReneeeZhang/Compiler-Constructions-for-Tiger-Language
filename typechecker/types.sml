@@ -25,7 +25,7 @@ struct
   fun are_the_same_type(ty1, ty2, pos) = (* ty * ty -> bool *)
       case (ty1, ty2) of
           (INT, INT) => true
-        | (NIL, NIL) => true
+        | (NIL, NIL) => true 
         | (STRING, STRING) => true
         | (UNIT, UNIT) => true
         | (BOTTOM, BOTTOM) => true
@@ -40,7 +40,9 @@ struct
   fun is_subtype_of(ty1, ty2,pos) = 
       case (ty1, ty2) of
           (_, BOTTOM) => true
+        | (BOTTOM, _) => true
         | (UNIT, _) => true
         | (RECORD(_), NIL) => true
+        | (NIL, RECORD(_)) => true
         | _ => are_the_same_type(ty1, ty2,pos)
 end

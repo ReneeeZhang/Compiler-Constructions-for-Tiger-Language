@@ -27,8 +27,16 @@ struct
   fun check_eq_args({exp=(), ty=Types.INT}, {exp=(), ty=Types.INT},pos) = {exp=(), ty=Types.INT}
     | check_eq_args({exp=(), ty=Types.STRING}, {exp=(), ty=Types.STRING},pos) =
     {exp=(), ty=Types.INT}
+    | check_eq_args({exp=(), ty=Types.RECORD(_)}, {exp=(), ty=Types.NIL},pos) =
+    {exp=(), ty=Types.INT}
+    | check_eq_args({exp=(), ty=Types.NIL}, {exp=(), ty=Types.RECORD(_)},pos) =
+    {exp=(), ty=Types.INT}
+    | check_eq_args({exp=(), ty=Types.RECORD(_)}, {exp=(), ty=Types.RECORD(_)},pos) =
+    {exp=(), ty=Types.INT}
+    | check_eq_args({exp=(), ty=Types.ARRAY(_)}, {exp=(), ty=Types.ARRAY(_)},pos) = 
+    {exp=(), ty=Types.INT}
     | check_eq_args({exp=(),ty=_}, {exp=(),ty=_},pos) = (ErrorMsg.error pos 
-    ("Comparison operators must be string-string or int-int"); {exp=(), ty=Types.BOTTOM})
+    ("Illegal comparison: must be strings, ints, arrays, or records"); {exp=(), ty=Types.BOTTOM})
 
   fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
     let
@@ -166,11 +174,11 @@ struct
       ([], []) => true
       | ([argexp], [param]) => (
         let val {exp=_, ty=ty_field_exp} = trexp(argexp) in
-          Types.are_the_same_type(param, ty_field_exp,pos) end
+          Types.is_subtype_of(param, ty_field_exp,pos) end
         )
       | (argexp::argexplist', param::paramlist') => (
         let val {exp=_, ty=ty_field_exp} = trexp(argexp) in
-          Types.are_the_same_type(param, ty_field_exp, pos) end
+          Types.is_subtype_of(param, ty_field_exp, pos) end
       ) andalso check_args_and_params_match(argexplist', paramlist')
     in
 		(case S.look(venv, func) of
@@ -290,7 +298,10 @@ struct
   (*Singleton dec, venv, tenv -> venv', tenv'*)
   (*TODO: Fun decs*)  
   (*Var decs*)
-  and transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
+  and transDec(venv,tenv,A.VarDec{escape,init=A.NilExp,name,pos,typ=NONE}) = 
+    (ErrorMsg.error pos ("Illegal nil use: record needed"); {tenv=tenv,
+     venv=venv})
+  | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
     let val {exp,ty} = transExp(venv,tenv,init,NONE)
     in {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
     end
@@ -298,7 +309,8 @@ struct
     let 
       val {exp,ty} = transExp(venv,tenv,init,NONE)
       val test = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
-                   if Types.are_the_same_type(label_ty,ty,pos) then () else ErrorMsg.error pos ("Mismatched type")
+                   if Types.is_subtype_of(label_ty,ty,pos) then () else
+                     ErrorMsg.error pos ("Mismatched type in declaration")
                     | NONE => ErrorMsg.error pos ("Undefined type")
     in
       {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
@@ -348,7 +360,7 @@ struct
         val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
         val venv'' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist,
         result_ty)})
-      in if Types.are_the_same_type(bodytype, result_ty,pos) then () else
+      in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
         {venv=venv'',tenv=tenv}
       end
@@ -366,7 +378,7 @@ struct
         fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
         val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
-      in if Types.are_the_same_type(bodytype, Types.UNIT,pos) then () else
+      in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT " ^
         Types.tostring(bodytype)); {venv=venv,tenv=tenv}
       end
