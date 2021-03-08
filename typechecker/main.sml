@@ -8,7 +8,12 @@ struct
     let 
       val ast = P.parse filename
     in
-      (F.findEscape ast; PrintAbsyn.print(TextIO.stdOut, ast))
+      (F.findEscape ast)
     end
-  fun run filename = S.transProg(P.parse filename)
+  fun run filename = 
+    let
+      val ast = P.parse filename
+    in
+      (F.findEscape ast; S.transProg ast)
+    end
 end
