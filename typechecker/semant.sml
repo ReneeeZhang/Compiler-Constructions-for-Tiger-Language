@@ -1,8 +1,6 @@
 structure Semant :> 
 sig 
-  val transProg : Absyn.exp -> unit 
-  (* val gettype : Types.ty -> Types.ty *)
-  
+  val transProg : Absyn.exp -> unit   
 end = 
 struct
 
@@ -20,18 +18,8 @@ struct
     case ty of Types.INT => ()
        | _ => ErrorMsg.error pos ("Integer Required")  
 
-  (*Fun for unwrapping Types.NAME*)
-  (* fun gettype(Types.NAME(_, ref(SOME(ty)))) = ty
-    | gettype(Types.NAME(_,ref(NONE))) = Types.NIL
-    | gettype(Types.INT) = Types.INT
-    | gettype(Types.STRING) = Types.STRING
-    | gettype(Types.UNIT) = Types.UNIT
-    | gettype(Types.NIL) = Types.NIL
-    | gettype(Types.RECORD(ls, un)) = Types.RECORD(ls, un)
-    | gettype(Types.ARRAY(ty, un)) = Types.ARRAY(ty, un) *)
 
-
-  fun transExp (venv, tenv, exp : Absyn.exp) =
+  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
     let
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
@@ -70,7 +58,7 @@ struct
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
-      (*TODO: still missing Call Record Break exps*)
+      (*TODO: still missing Call Record exps, breaks within functions*)
       (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
@@ -84,7 +72,7 @@ struct
         | trexp (A.WhileExp{test, body, pos}) = 
           let
             val {exp=exp_test, ty=ty_test} = trexp(test)
-            val {exp=exp_body, ty=ty_body} = trexp(body)
+            val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body, SOME(()))
           in
             (if Types.is_subtype_of(ty_test, Types.INT) then () else ErrorMsg.error pos ("Loop condition must be int");
              if Types.is_subtype_of(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
@@ -109,13 +97,19 @@ struct
             val venv' = S.enter(venv, var, {access=(), ty=Types.INT})
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
-            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body)
+            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, SOME(()))
           in
             (if Types.is_subtype_of(ty_lo, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
              if Types.is_subtype_of(ty_hi, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
              if Types.is_subtype_of(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
+
+      (*Break Exps*)
+        | trexp(A.BreakExp(pos)) = 
+          (case isLoop of SOME(()) => {exp=(), ty=Types.UNIT}
+             | NONE => (ErrorMsg.error pos ("Break must be inside loop");
+               {exp=(), ty=Types.UNIT}))
 
       (*If Exps*)
         | trexp (A.IfExp{test, then', else', pos}) = 
@@ -158,13 +152,41 @@ struct
       (*Let Exps*)
       | trexp (A.LetExp{decs,body,pos}) = 
         let val {venv=venv',tenv=tenv'} = transDecs(venv,tenv,decs)
-        in transExp(venv',tenv',body)
+        in transExp(venv',tenv',body,NONE)
         end
  
       (*Seq Exps*)
       | trexp (A.SeqExp([])) = {exp=(), ty=Types.UNIT}
       | trexp (A.SeqExp([t])) = trexp (#1 t)
       | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
+
+	  (*Call Exps*)
+	  | trexp (A.CallExp({func, args, pos})) =
+    let fun check_args_and_params_match(argexplist, paramlist) =
+      case (argexplist, paramlist) of
+      ([], []) => true
+      | ([argexp], [param]) => (
+        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in Types.are_the_same_type(param, ty_field_exp) end
+        )
+      | (argexp::argexplist', param::paramlist') => (
+        let val {exp=_, ty=ty_field_exp} = trexp(argexp) in Types.are_the_same_type(param, ty_field_exp) end
+      ) andalso check_args_and_params_match(argexplist', paramlist')
+    in
+		(case S.look(venv, func) of
+			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty)}) => 
+				(if List.length func_param_ty_list <> List.length args then (
+                          ErrorMsg.error pos ("Function with " ^ Int.toString(List.length func_param_ty_list) ^ " parameters called with " ^ Int.toString(List.length args) ^ " arguments"); 
+                          {exp=(), ty=Types.BOTTOM}
+                          )
+						  else (
+							  if check_args_and_params_match(args, func_param_ty_list) then {exp=(), ty=return_ty}
+							  else  (ErrorMsg.error pos ("Function argument list types don't match expected parameters"); {exp=(), ty=Types.BOTTOM})
+						  )
+				)
+			| SOME(_) => (ErrorMsg.error pos ("Non-function symbol called"); {exp=(), ty=Types.BOTTOM})
+            | NONE => (ErrorMsg.error pos ("Undefined function name"); {exp=(), ty=Types.BOTTOM})
+		)
+    end
 
       (* Record Exp *)
       | trexp (A.RecordExp{fields, typ, pos}) = 
@@ -219,9 +241,10 @@ struct
             {exp=(), ty = ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable ");
                    {exp=(), ty=Types.INT}))
+
       (* Array vars *)
       | trvar (A.SubscriptVar(var, expression, pos)) = 
-        case trvar(var) of {exp=_, ty=Types.ARRAY(ty, un)} =>
+        (case trvar(var) of {exp=_, ty=Types.ARRAY(ty, un)} =>
           let 
             val {exp=var_exp, ty=var_ty} = trvar var
             val {exp=exp_exp, ty=exp_ty} = trexp expression
@@ -229,10 +252,25 @@ struct
             (if Types.is_subtype_of(exp_ty, Types.INT) then () else ErrorMsg.error pos ("Array index must be int"); 
              {exp=(), ty=ty})
           end
-        | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT})
+        | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT}))
 
-        (* TODO: write field vars *)
-
+      (* Field vars *)
+      | trvar (A.FieldVar(var, name, pos)) = 
+        let 
+          fun findfield([]) = (ErrorMsg.error pos ("Undefined record field");
+          Types.BOTTOM)
+            | findfield((fname,ty)::fieldlist) = if fname=name then ty else findfield(fieldlist)
+          val {exp, ty} = trvar var
+        in
+          (case ty of Types.RECORD(recfun,un) =>
+            let
+              val fieldlist = recfun()
+            in
+              {exp=(), ty=findfield(fieldlist)}
+            end
+             | _ => (ErrorMsg.error pos ("Not a record type"); {exp=(),
+               ty=Types.BOTTOM}))         
+        end
     in
       trexp(exp)
     end
@@ -248,10 +286,19 @@ struct
   (*TODO: Fun decs*)  
   (*Var decs*)
   and transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
-    let val {exp,ty} = transExp(venv,tenv,init)
+    let val {exp,ty} = transExp(venv,tenv,init,NONE)
     in {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
     end
-
+  | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}) =
+    let 
+      val {exp,ty} = transExp(venv,tenv,init,NONE)
+      val test = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
+                   if Types.are_the_same_type(label_ty,ty) then () else ErrorMsg.error pos ("Mismatched type")
+                    | NONE => ErrorMsg.error pos ("Undefined type")
+    in
+      {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
+    end
+        
   (*Type Decs*)
   | transDec (venv,tenv,A.TypeDec(tydec_group)) = 
     let exception UNIQUE_RECORDS
@@ -269,9 +316,82 @@ struct
         {venv=venv, tenv=add_types(tenv, tydec_group)}
     end
 
+  (*Single-function funcdec with 0 or more params*)
+  | transDec (venv,tenv,
+      A.FunctionDec([{name, params, body, pos,
+        result=SOME(rt,respos)}])) =
+      let val result_ty = case S.look(tenv,rt) of
+          SOME(rty) => rty
+          | NONE => (ErrorMsg.error pos ("Undefined return type in function definition"); T.UNIT)
+        fun transparam(absf:Absyn.field) = 
+            case S.look(tenv, #typ absf) of
+              SOME t => {name = #name absf, ty=t}
+              | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition"); {name = #name absf,ty=T.UNIT})
+        val params' = map transparam params
+        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
+        val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
+        val {exp=_,ty=bodytype} = transExp(venv, tenv, body, NONE)
+      in if Types.are_the_same_type(bodytype, result_ty) then () else ErrorMsg.error pos ("Function body type does not match specified return type"); {venv=venv',tenv=tenv}
+      end
+  
+  (*Single-procedure funcdec with 0 or more params*)
+  | transDec (venv,tenv,
+      A.FunctionDec([{name, params, body, pos,
+        result=NONE}])) =
+      let
+        fun transparam(absf:Absyn.field) = 
+            case S.look(tenv, #typ absf) of
+              SOME t => {name = #name absf, ty=t}
+              | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition at position " ^ Int.toString(pos)) ; {name = #name absf,ty=T.UNIT})
+        val params' = map transparam params
+        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
+        val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
+        val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
+      in if Types.are_the_same_type(bodytype, Types.UNIT) then () else
+        ErrorMsg.error pos ("Procedure body type must be UNIT " ^
+        Types.tostring(bodytype)); {venv=venv,tenv=tenv}
+      end
+  
+  (*funcdec with multiple functions/procedures*)
+  | transDec (venv,tenv, A.FunctionDec(otherfds)) =
+    processFunDecList(collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(otherfds)),tenv,A.FunctionDec(otherfds)) 
+  
+  and processFunDecList(venv,tenv, A.FunctionDec([])) = {venv=venv,tenv=tenv}
+  | processFunDecList(venv,tenv, A.FunctionDec([fd])) = transDec(venv,tenv,A.FunctionDec([fd]))
+  | processFunDecList(venv,tenv, A.FunctionDec(fd::otherfds)) =
+    (transDec(venv,tenv,A.FunctionDec([fd])); processFunDecList(venv,tenv,A.FunctionDec(otherfds)))
+
+  
+  and collectHeadersFromFunDecList(venv, tenv, A.FunctionDec([])) = venv
+  | collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(fundeclist)) =
+    foldl (fn(fundec, venv) => S.enter(venv, #name fundec, getFunDecHeader(fundec, tenv))) venv fundeclist
+  
+  and getFunDecHeader({name, params, body, pos,
+        result=NONE}, tenv) =
+      let
+        fun transparam(absf:Absyn.field) = 
+            case S.look(tenv, #typ absf) of
+              SOME t => {name = #name absf, ty=t}
+              | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition at position " ^ Int.toString(pos)); {name = #name absf,ty=T.UNIT})
+        val params' = map transparam params
+      in {access=(), ty=T.ARROW(map #ty params', T.UNIT)}
+      end
+    | getFunDecHeader({name, params, body, pos,
+        result=SOME(rt,pos')}, tenv) =
+        let val result_ty = case S.look(tenv,rt) of
+            SOME(rty) => rty
+            | NONE => (ErrorMsg.error pos ("Undefined return type in function definition"); T.UNIT)
+          fun transparam(absf:Absyn.field) = 
+              case S.look(tenv, #typ absf) of
+                SOME t => {name = #name absf, ty=t}
+                | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition"); {name = #name absf,ty=T.UNIT})
+          val params' = map transparam params
+        in {access=(), ty=T.ARROW(map #ty params', result_ty)}
+        end
+
   and transTy (tenv, type_sym, unique_records_map, tydec_group, absyn_ty) = 
         (* function find_in_tydec_group looks for the type_sym in tydec_group (Absyn.TypeDec, a list), if it exists,
-           return SOME; Otherwise, NONE *)
+        return SOME; Otherwise, NONE *)
     let fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
             let fun aux tydecs =
                 case tydecs of
@@ -320,21 +440,9 @@ struct
                 end 
     in
         address(type_sym, absyn_ty)
-        (* case absyn_ty of 
-                A.NameTy(sym, _) => proc(sym, unique_records_map)
-              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym, unique_records_map), ref ()) (* TODO: not always ref ()*)
-              | A.RecordTy(fields) => let val indicator = ref ()
-                                      in
-                                          (
-                                            H.insert unique_records_map (S.name(type_sym), indicator);
-                                            Types.RECORD((fn() => map 
-                                                        (fn {name, typ, ...} => (name, proc(typ, unique_records_map)))
-                                                        fields), indicator)
-                                          )
-                                      end                                     *)
     end
 
   fun transProg (tree : Absyn.exp) = 
-    (transExp(E.base_venv, E.base_tenv, tree);()) 
+    (transExp(E.base_venv, E.base_tenv, tree,NONE);())
     
 end

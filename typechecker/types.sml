@@ -13,7 +13,15 @@ struct
 	        | UNIT
           | BOTTOM
 
-  (* TODO: should add subtype logic *)
+  fun tostring(RECORD(fields)) = "record" 
+    | tostring(NIL) = "nil"
+    | tostring(INT) = "int"
+    | tostring(STRING) = "string"
+    | tostring(ARRAY(fields)) = "array"
+    | tostring(ARROW(fields)) = "arrow"
+    | tostring(UNIT) = "unit"
+    | tostring(BOTTOM) = "bottom"
+
   fun are_the_same_type(ty1, ty2) = (* ty * ty -> bool *)
       case (ty1, ty2) of
           (INT, INT) => true
@@ -26,7 +34,8 @@ struct
         | _ => (print("Inconsistent types\n"); false)
 
   (* Check if ty2 is a subtype of ty1
-     If ty2 is a subtype of ty1, return true; otherwise, false *)
+     If ty2 is a subtype of ty1, return true; otherwise, false 
+     Note that a type is a subtype of itself *)
   fun is_subtype_of(ty1, ty2) = 
       case (ty1, ty2) of
           (_, BOTTOM) => true
