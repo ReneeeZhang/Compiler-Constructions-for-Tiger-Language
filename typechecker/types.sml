@@ -22,6 +22,15 @@ struct
         | (UNIT, UNIT) => true
         | (BOTTOM, BOTTOM) => true
         | (ARRAY(_, u1), ARRAY(_, u2)) => u1 = u2
-        | (RECORD(_, u1), RECORD(_, u2)) => u1 = u2
+        | (RECORD(_, u1), RECORD(_, u2)) => if u1 = u2 then true else (ErrorMsg.error 0 ("Different RECORD types."); false)
         | _ => (print("Inconsistent types\n"); false)
+
+  (* Check if ty2 is a subtype of ty1
+     If ty2 is a subtype of ty1, return true; otherwise, false *)
+  fun is_subtype_of(ty1, ty2) = 
+      case (ty1, ty2) of
+          (_, BOTTOM) => true
+        | (UNIT, _) => true
+        | (RECORD(_), NIL) => true
+        | _ => are_the_same_type(ty1, ty2)
 end
