@@ -393,7 +393,7 @@ struct
 		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
 		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
-        ErrorMsg.error pos ("Procedure body type must be UNIT " ^
+        ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
         Types.tostring(bodytype)); {venv=venv''',tenv=tenv}
       end
   
