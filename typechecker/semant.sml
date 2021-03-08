@@ -429,7 +429,7 @@ struct
             end
         val params' = map transparam params
 		    val typelist = get_types(params)
-      in {access=(), ty=T.ARROW(typelist, T.UNIT)}
+      in {access=(), ty=T.ARROW(map #ty params', T.UNIT)}
       end
     | getFunDecHeader({name, params, body, pos,
         result=SOME(rt,pos')}, tenv) =
@@ -451,7 +451,7 @@ struct
             end
           val params' = map transparam params
           val typelist = get_types(params)
-        in {access=(), ty=T.ARROW(typelist, result_ty)}
+        in {access=(), ty=T.ARROW(map #ty params', result_ty)}
         end
 
   and transTy (tenv, type_sym, unique_records_map, tydec_group, absyn_ty) = 
