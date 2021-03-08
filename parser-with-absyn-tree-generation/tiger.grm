@@ -3,8 +3,8 @@ structure A = Absyn;
 fun group_at_let decs = 
     case decs of
         [] => []
-        | A.TypeDec(t1) :: A.TypeDec(t2) :: decs' => group_at_let(A.TypeDec(t2@t1)::decs')
-        | A.FunctionDec(f1) :: A.FunctionDec(f2) :: decs' => group_at_let(A.FunctionDec(f2@f1)::decs')
+        | A.TypeDec(t1) :: A.TypeDec(t2) :: decs' => group_at_let(A.TypeDec(t1@t2)::decs')
+        | A.FunctionDec(f1) :: A.FunctionDec(f2) :: decs' => group_at_let(A.FunctionDec(f1@f2)::decs')
         | x::decs' => x :: group_at_let(decs') 
 
 %%
