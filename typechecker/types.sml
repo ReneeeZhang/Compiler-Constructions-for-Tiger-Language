@@ -31,7 +31,7 @@ struct
         | (BOTTOM, BOTTOM) => true
         | (ARRAY(_, u1), ARRAY(_, u2)) => u1 = u2
         | (RECORD(_, u1), RECORD(_, u2)) => if u1 = u2 then true else (ErrorMsg.error 0 ("Different RECORD types."); false)
-        | _ => (print("Inconsistent types\n"); false)
+        | _ => (print("Inconsistent types\nOne is " ^ tostring(ty1) ^ ", the other is " ^ tostring(ty2) ^ "\n"); false)
 
   (* Check if ty2 is a subtype of ty1
      If ty2 is a subtype of ty1, return true; otherwise, false 
