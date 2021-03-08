@@ -357,12 +357,14 @@ struct
         val typelist = get_types(params)
         fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
-        val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
-        val venv'' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist,
+        val venv'' = S.enter(venv', name, {access=(), ty=Types.ARROW(typelist,
+        result_ty)})
+		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE)
+		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist,
         result_ty)})
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
-        {venv=venv'',tenv=tenv}
+        {venv=venv''',tenv=tenv}
       end
   
   (*Single-procedure funcdec with 0 or more params*)
@@ -374,13 +376,25 @@ struct
             case S.look(tenv, #typ absf) of
               SOME t => {name = #name absf, ty=t}
               | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition at position " ^ Int.toString(pos)) ; {name = #name absf,ty=T.UNIT})
+		fun get_types([]) = []
+          | get_types((h : Absyn.field)::(t : Absyn.field list)) = 
+            let 
+              val a = case S.look(tenv, #typ h) of 
+                           SOME t => t
+                         | NONE => Types.BOTTOM
+            in
+              a::get_types(t)
+            end
         val params' = map transparam params
+		val typelist = get_types(params)
         fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
-        val {exp=_,ty=bodytype} = transExp(venv', tenv, body, NONE)
+		val venv'' = S.enter(venv', name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
+		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
+		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
-        ErrorMsg.error pos ("Procedure body type must be UNIT " ^
-        Types.tostring(bodytype)); {venv=venv,tenv=tenv}
+        ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
+        Types.tostring(bodytype)); {venv=venv''',tenv=tenv}
       end
   
   (*funcdec with multiple functions/procedures*)
@@ -404,7 +418,17 @@ struct
             case S.look(tenv, #typ absf) of
               SOME t => {name = #name absf, ty=t}
               | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition at position " ^ Int.toString(pos)); {name = #name absf,ty=T.UNIT})
+	    	fun get_types([]) = []
+          | get_types((h : Absyn.field)::(t : Absyn.field list)) = 
+            let 
+              val a = case S.look(tenv, #typ h) of 
+                           SOME t => t
+                         | NONE => Types.BOTTOM
+            in
+              a::get_types(t)
+            end
         val params' = map transparam params
+		    val typelist = get_types(params)
       in {access=(), ty=T.ARROW(map #ty params', T.UNIT)}
       end
     | getFunDecHeader({name, params, body, pos,
@@ -416,7 +440,17 @@ struct
               case S.look(tenv, #typ absf) of
                 SOME t => {name = #name absf, ty=t}
                 | NONE => (ErrorMsg.error pos ("Undefined type for parameter in function definition"); {name = #name absf,ty=T.UNIT})
+          fun get_types([]) = []
+            | get_types((h : Absyn.field)::(t : Absyn.field list)) = 
+              let 
+                val a = case S.look(tenv, #typ h) of 
+                            SOME t => t
+                          | NONE => Types.BOTTOM
+              in
+                a::get_types(t)
+            end
           val params' = map transparam params
+          val typelist = get_types(params)
         in {access=(), ty=T.ARROW(map #ty params', result_ty)}
         end
 
