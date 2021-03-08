@@ -399,8 +399,17 @@ struct
   
   (*funcdec with multiple functions/procedures*)
   | transDec (venv,tenv, A.FunctionDec(otherfds)) =
+	(checkThatNoTwoMutuallyRecursiveFunctionsHaveTheSameName(otherfds);
     processFunDecList(collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(otherfds)),tenv,A.FunctionDec(otherfds)) 
-  
+	)
+  and checkThatNoTwoMutuallyRecursiveFunctionsHaveTheSameName(fds:A.fundec list) =
+	let val _ = foldl (fn (fd: A.fundec, current_list_of_names) => (
+		if List.exists (fn x => x = #name fd) current_list_of_names
+		then (ErrorMsg.error (#pos fd) ("Function " ^ S.name(#name fd) ^ " appears multiple times in mutually recursive segment"); current_list_of_names)
+		else (#name fd)::current_list_of_names
+	)) [] fds
+	in () end
+	
   and processFunDecList(venv,tenv, A.FunctionDec([])) = {venv=venv,tenv=tenv}
   | processFunDecList(venv,tenv, A.FunctionDec([fd])) = transDec(venv,tenv,A.FunctionDec([fd]))
   | processFunDecList(venv,tenv, A.FunctionDec(fd::otherfds)) =
