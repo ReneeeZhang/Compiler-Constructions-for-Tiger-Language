@@ -14,6 +14,12 @@ struct
   structure S = Symbol
   structure H = HashTable
 
+  structure SymbolSet = HashSetFn (struct type hash_key = string
+                                          fun hashVal s = HashString.hashString s
+                                          fun sameKey(s1, s2) = s1 = s2
+                                    end)
+  structure SS = SymbolSet
+  
   fun checkint({exp,ty}, pos) = 
     case ty of Types.INT => ()
        | _ => ErrorMsg.error pos ("Integer Required")  
@@ -392,7 +398,8 @@ struct
   and transTy (tenv, type_sym, unique_records_map, tydec_group, absyn_ty) = 
         (* function find_in_tydec_group looks for the type_sym in tydec_group (Absyn.TypeDec, a list), if it exists,
         return SOME; Otherwise, NONE *)
-    let fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
+    let val cycle_detector = SS.mkEmpty 64 
+        fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
             let fun aux tydecs =
                 case tydecs of
                     [] => NONE
@@ -410,16 +417,21 @@ struct
         
         (* function proc basically find out type name in ty_group in case of (mutual) recersion by calling address;
            if name does occur in the ty_group, then look up in tenv *)
-        fun proc(type_sym, unique_records_map) = (* S.symbol -> Types.ty *) 
+        fun proc(type_sym) = (* S.symbol -> Types.ty *) 
             case lookup_in_tydec_group type_sym of
                 NONE => lookup_in_tenv(type_sym) (* If not in the tydec_group, search in tenv *)
               | SOME(ty) => address(type_sym, ty) (* If in the tydec_group, then recursively call proc on each ty *)
 
-        (* function address is mutually recusive to proc, handling cases where type name is found in type dec group *)
+        (* function address is mutually recusive to proc, handling cases where type name is found in type dec group 
+           argv: ty is the corresponding type to type_sym *)
         and address(type_sym, ty) = 
             case ty of 
-                A.NameTy(sym, _) => proc(sym, unique_records_map)
-              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym, unique_records_map), ref()) (* TODO: not always ref ()*)
+                A.NameTy(sym, pos) => if SS.member(cycle_detector, S.name(sym))
+                                      then (ErrorMsg.error pos (S.name(sym) ^ " is in an illegal cycle of type declaration.");
+                                            Types.BOTTOM)
+                                      else (SS.add(cycle_detector, S.name(sym));
+                                            proc(sym)) 
+              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym), ref()) (* TODO: not always ref ()*)
               | A.RecordTy(fields) => 
                 let val namestr = S.name(type_sym)
                     val rec_entry = H.find unique_records_map namestr
@@ -434,7 +446,7 @@ struct
                                               end
                 in
                     Types.RECORD((fn() => map 
-                                          (fn {name, typ, ...} => (name, proc(typ, unique_records_map)))
+                                          (fn {name, typ, ...} => (name, proc(typ)))
                                           fields), 
                                   indicator)
                 end 
