@@ -77,7 +77,7 @@ struct
           val {exp=exp1,ty=ty1} = trexp(exp)
           val {exp=exp2,ty=ty2} = trvar(var)
         in
-         (if Types.are_the_same_type(ty1, ty2) then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
+         (if Types.is_subtype_of(ty1, ty2) then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
         end
 
       (*While exps*)
@@ -86,8 +86,8 @@ struct
             val {exp=exp_test, ty=ty_test} = trexp(test)
             val {exp=exp_body, ty=ty_body} = trexp(body)
           in
-            (if Types.are_the_same_type(ty_test, Types.INT) then () else ErrorMsg.error pos ("Loop condition must be int");
-             if Types.are_the_same_type(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.is_subtype_of(ty_test, Types.INT) then () else ErrorMsg.error pos ("Loop condition must be int");
+             if Types.is_subtype_of(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
 
@@ -96,8 +96,8 @@ struct
             val {exp=exp_test, ty=ty_test} = trexp(test)
             val {exp=exp_body, ty=ty_body} = trexp(body)
           in
-            if Types.are_the_same_type(ty_test, Types.INT) 
-            then if Types.are_the_same_type(ty_body, Types.UNIT) 
+            if Types.is_subtype_of(ty_test, Types.INT) 
+            then if Types.is_subtype_of(ty_body, Types.UNIT) 
                  then {exp=(), ty=Types.UNIT})
                  else (ErrorMsg.error pos ("Loop body must be type unit"); {exp=(), ty=Types.BOTTOM})
             else (ErrorMsg.error pos ("Loop condition must be int"); {exp=(), ty=Types.BOTTOM})
@@ -111,9 +111,9 @@ struct
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body)
           in
-            (if Types.are_the_same_type(ty_lo, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if Types.are_the_same_type(ty_hi, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if Types.are_the_same_type(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.is_subtype_of(ty_lo, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if Types.is_subtype_of(ty_hi, Types.INT) then () else ErrorMsg.error pos ("Loop bounds must be int");
+             if Types.is_subtype_of(ty_body, Types.UNIT) then () else ErrorMsg.error pos ("Loop body must be type unit");
              {exp=(), ty=Types.UNIT})
           end
 
@@ -125,8 +125,8 @@ struct
               val {exp=expelse, ty=tyelse} = trexp(valOf(else'))
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if Types.are_the_same_type(tythen, tyelse) then () else ErrorMsg.error pos ("Types mismatched");
-               if Types.are_the_same_type(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.is_subtype_of(tythen, tyelse) then () else ErrorMsg.error pos ("Types mismatched");
+               if Types.is_subtype_of(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
                {exp=(), ty = tythen})
             end
           | NONE =>
@@ -134,8 +134,8 @@ struct
               val {exp=expthen, ty=tythen} = trexp(then')
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if Types.are_the_same_type(tythen, Types.UNIT) then () else ErrorMsg.error pos ("If-then must return unit");
-               if Types.are_the_same_type(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.is_subtype_of(tythen, Types.UNIT) then () else ErrorMsg.error pos ("If-then must return unit");
+               if Types.is_subtype_of(tytest, Types.INT) then () else ErrorMsg.error pos ("Test requires type INT");
                {exp=(), ty=tythen})
             end
             )
@@ -146,8 +146,8 @@ struct
             val {exp=exp_size, ty=ty_size} = trexp(size)
             val {exp=exp_init, ty=ty_init} = trexp(init)
           in
-            (if Types.are_the_same_type(ty_size, Types.INT) then () else ErrorMsg.error pos ("Array size must be integer");
-             if Types.are_the_same_type(ty_init, Types.INT) then () else ErrorMsg.error pos ("Array init must be integer");
+            (if Types.is_subtype_of(ty_size, Types.INT) then () else ErrorMsg.error pos ("Array size must be integer");
+             if Types.is_subtype_of(ty_init, Types.INT) then () else ErrorMsg.error pos ("Array init must be integer");
              case S.look(tenv, typ) of SOME(Types.ARRAY(fields)) => {exp=(), ty=Types.ARRAY(fields)}
                 | SOME (_) => (ErrorMsg.error pos ("Non-array type"); {exp=(),
                   ty=Types.BOTTOM})
@@ -184,12 +184,14 @@ struct
                                       if s1 = s2
                                       then let val {exp=_, ty=ty_field_exp} = trexp(e)
                                             in
-                                              if Types.are_the_same_type(ty, ty_field_exp)
+                                              if Types.is_subtype_of(ty, ty_field_exp)
                                               then aux(decl_fields', given_fields')
                                               else ( (* Field types are inconsistent *)
-                                                  ErrorMsg.error p ("Types of field " ^ S.name(s1) ^ " are not consistent in the record exp."); 
+                                                  
+                                                  ErrorMsg.error p (S.name(typ) ^ "'s field " ^ S.name(s1) ^ "'s type is not consistent with the declared in the record exp."); 
                                                   {exp=(), ty=Types.BOTTOM}
                                               )
+                                            
                                             end
                                       else ( (* Field names are inconsistent *)
                                         ErrorMsg.error p (S.name(s1) ^ " should have the same field name as " ^ S.name(s2) ^ " in the record exp."); 
@@ -224,7 +226,7 @@ struct
             val {exp=var_exp, ty=var_ty} = trvar var
             val {exp=exp_exp, ty=exp_ty} = trexp expression
           in
-            (if Types.are_the_same_type(exp_ty, Types.INT) then () else ErrorMsg.error pos ("Array index must be int"); 
+            (if Types.is_subtype_of(exp_ty, Types.INT) then () else ErrorMsg.error pos ("Array index must be int"); 
              {exp=(), ty=ty})
           end
         | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT})
@@ -252,24 +254,25 @@ struct
 
   (*Type Decs*)
   | transDec (venv,tenv,A.TypeDec(tydec_group)) = 
-    let fun add_types (tenv, types) =
+    let exception UNIQUE_RECORDS
+        val unique_records_map : (string, Types.unique) H.hash_table =
+            H.mkTable(HashString.hashString, op =) (128, UNIQUE_RECORDS) (* A type name(string) to unique ref map associated with each type dec group *)
+        fun add_types (tenv, types) =
             case types of
               [] => tenv
-            | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, transTy(tenv, name, tydec_group, ty))
+            | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, 
+                                                             transTy(tenv, name, unique_records_map, tydec_group, ty))
                                            in 
-                                              add_types(tenv', types')
+                                                add_types(tenv', types')
                                            end
     in
         {venv=venv, tenv=add_types(tenv, tydec_group)}
     end
 
-  and transTy (tenv, type_sym, tydec_group, absyn_ty) = 
+  and transTy (tenv, type_sym, unique_records_map, tydec_group, absyn_ty) = 
         (* function find_in_tydec_group looks for the type_sym in tydec_group (Absyn.TypeDec, a list), if it exists,
            return SOME; Otherwise, NONE *)
-    let exception UNIQUE_RECORDS
-        val unique_records_map : (string, Types.unique) H.hash_table =
-            H.mkTable(HashString.hashString, op =) (128, UNIQUE_RECORDS)
-        fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
+    let fun lookup_in_tydec_group type_sym = (* S.symbol -> Types.ty option *)
             let fun aux tydecs =
                 case tydecs of
                     [] => NONE
@@ -285,34 +288,39 @@ struct
                 SOME(ty) => ty
               | NONE => (ErrorMsg.error 0 ("Undefinied type: " ^ S.name(type_sym)); Types.BOTTOM) (* TODO: pos is undefined *)
         
-        (* function proc basically find out name in ty_group in case of (mutual) recersion; if name does
-           occur in the ty_group, then look up in tenv *)
+        (* function proc basically find out type name in ty_group in case of (mutual) recersion by calling address;
+           if name does occur in the ty_group, then look up in tenv *)
         fun proc(type_sym, unique_records_map) = (* S.symbol -> Types.ty *) 
             case lookup_in_tydec_group type_sym of
                 NONE => lookup_in_tenv(type_sym) (* If not in the tydec_group, search in tenv *)
-              | SOME(ty) => case ty of (* If in the tydec_group, then recursively call proc on each ty *)
-                                A.NameTy(sym, _) => proc(sym, unique_records_map)
-                              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym, unique_records_map), ref()) (* TODO: not always ref ()*)
-                              | A.RecordTy(fields) => 
-                                let val name = S.name(type_sym)
-                                    val rec_entry = H.find unique_records_map name
-                                in
-                                    Types.RECORD((fn() => map 
-                                                          (fn {name, typ, ...} => (name, proc(typ, unique_records_map)))
-                                                          fields), 
-                                                  case rec_entry of
-                                                      SOME(indicator) => indicator
-                                                    | NONE => let val new_indicator = ref ()
-                                                              in
-                                                                (
-                                                                    H.insert unique_records_map (name, new_indicator);
-                                                                    new_indicator
-                                                                )
-                                                              end
+              | SOME(ty) => address(type_sym, ty) (* If in the tydec_group, then recursively call proc on each ty *)
+
+        (* function address is mutually recusive to proc, handling cases where type name is found in type dec group *)
+        and address(type_sym, ty) = 
+            case ty of 
+                A.NameTy(sym, _) => proc(sym, unique_records_map)
+              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym, unique_records_map), ref()) (* TODO: not always ref ()*)
+              | A.RecordTy(fields) => 
+                let val namestr = S.name(type_sym)
+                    val rec_entry = H.find unique_records_map namestr
+                    val indicator = case rec_entry of
+                                      SOME(uref) => uref
+                                    | NONE => let val new_indicator = ref ()
+                                              in
+                                                (
+                                                    H.insert unique_records_map (namestr, new_indicator);
+                                                    new_indicator
                                                 )
-                                end 
+                                              end
+                in
+                    Types.RECORD((fn() => map 
+                                          (fn {name, typ, ...} => (name, proc(typ, unique_records_map)))
+                                          fields), 
+                                  indicator)
+                end 
     in
-        case absyn_ty of 
+        address(type_sym, absyn_ty)
+        (* case absyn_ty of 
                 A.NameTy(sym, _) => proc(sym, unique_records_map)
               | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym, unique_records_map), ref ()) (* TODO: not always ref ()*)
               | A.RecordTy(fields) => let val indicator = ref ()
@@ -323,29 +331,8 @@ struct
                                                         (fn {name, typ, ...} => (name, proc(typ, unique_records_map)))
                                                         fields), indicator)
                                           )
-                                      end                                    
+                                      end                                     *)
     end
-
-  (*Absyn.ty -> Types.ty*)
-  (* and transTy (tenv, A.NameTy(absyn_ty)) = 
-    case S.look(tenv,(#1 absyn_ty)) of SOME(ty) => ty
-     | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)
-  | transTy (tenv, A.ArrayTy(absyn_ty)) = 
-    case S.look(tenv, (#1 absyn_ty)) of SOME(ty) => Types.ARRAY(ty, ref())
-       | NONE => (ErrorMsg.error (#2 absyn_ty) ("Undefined type"); Types.UNIT)
-  | transTy (tenv, A.RecordTy(fields)) = (* fields: field list, in terms of Absyn *)
-    let fun iter_fields fields = (* ans: (symbol*ty) list, in terms of Types.RECORD *)
-            case fields of
-              [] => []
-            | f :: fields' => case S.look(tenv, (#typ f)) of
-                                SOME(ty) => ((#name f), ty) :: iter_fields fields'
-                              | NONE => (ErrorMsg.error (#pos f) ("Undefined type in a record field"); 
-                                         [])
-        val fields_in_types = iter_fields fields
-    in
-        Types.RECORD((fn () => fields_in_types), ref())
-    end 
-    *)
 
   fun transProg (tree : Absyn.exp) = 
     (transExp(E.base_venv, E.base_tenv, tree);()) 
