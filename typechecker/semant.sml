@@ -460,15 +460,15 @@ struct
            argv: ty is the corresponding type to type_sym *)
         and address(type_sym, ty) = 
             case ty of 
-                A.NameTy(sym, pos) => if SS.member(cycle_detector, S.name(sym))
-                                      then (ErrorMsg.error pos ("Name type: " ^ S.name(sym) ^ ", is in an illegal cycle of type declaration.");
+                A.NameTy(sym, pos) => if SS.member(cycle_detector, S.name(type_sym))
+                                      then (ErrorMsg.error pos ("Name type: " ^ S.name(type_sym) ^ ", is in an illegal cycle of type declaration.");
                                             Types.BOTTOM)
-                                      else (SS.add(cycle_detector, S.name(sym));
+                                      else (SS.add(cycle_detector, S.name(type_sym));
                                             proc(sym)) 
-              | A.ArrayTy(sym, pos) =>  if SS.member(cycle_detector, S.name(sym))
-                                        then (ErrorMsg.error pos ("Array type: " ^ S.name(sym) ^ ", is in an illegal cycle of type declaration.");
+              | A.ArrayTy(sym, pos) =>  if SS.member(cycle_detector, S.name(type_sym))
+                                        then (ErrorMsg.error pos ("Array type: " ^ S.name(type_sym) ^ ", is in an illegal cycle of type declaration.");
                                               Types.BOTTOM)
-                                        else (SS.add(cycle_detector, S.name(sym));
+                                        else (SS.add(cycle_detector, S.name(type_sym));
                                               Types.ARRAY(proc(sym), get_uref(type_sym)))
               | A.RecordTy(fields) => Types.RECORD((fn() => map 
                                                             (fn {name, typ, ...} => (name, proc(typ)))
