@@ -317,12 +317,14 @@ struct
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}) =
     let 
       val {exp,ty} = transExp(venv,tenv,init,NONE)
-      val test = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
-                   if Types.is_subtype_of(label_ty,ty,pos) then () else
-                     ErrorMsg.error pos ("Mismatched type in declaration")
-                    | NONE => ErrorMsg.error pos ("Undefined type")
+      val type_lookup = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
+                   if Types.is_subtype_of(label_ty,ty,pos) then label_ty else
+                     (ErrorMsg.error pos ("Mismatched type in declaration");
+                     Types.BOTTOM)
+                    | NONE => (ErrorMsg.error pos ("Undefined type");
+                      Types.BOTTOM)
     in
-      {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
+      {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=type_lookup})}
     end
         
   (*Type Decs*)
