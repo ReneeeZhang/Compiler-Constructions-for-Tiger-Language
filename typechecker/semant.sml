@@ -302,6 +302,29 @@ struct
     let exception UNIQUE_RECORDS
         val unique_ref_map : (string, Types.unique) H.hash_table =
             H.mkTable(HashString.hashString, op =) (128, UNIQUE_RECORDS) (* A type name(string) to unique ref map associated with each type dec group *)
+        
+        fun have_redeclarations () =
+            let val redec_detector = SS.mkEmpty 64
+                fun aux tydecs = 
+                    case tydecs of 
+                        [] => false 
+                      | {name, ty, pos} :: tydecs' =>
+                        let val namestr = S.name(name)
+                        in
+                            if SS.member(redec_detector, namestr)
+                            then (
+                              ErrorMsg.error pos (namestr ^ " is a redeclaration.");
+                              true
+                            )
+                            else (
+                              SS.add(redec_detector, namestr);
+                              aux tydecs'
+                            )
+                        end
+            in 
+                aux tydec_group
+            end 
+
         fun add_types (tenv, types) =
             case types of
               [] => tenv
@@ -311,7 +334,9 @@ struct
                                                 add_types(tenv', types')
                                            end
     in
-        {venv=venv, tenv=add_types(tenv, tydec_group)}
+        if have_redeclarations()
+        then {venv=venv, tenv=tenv}
+        else {venv=venv, tenv=add_types(tenv, tydec_group)}
     end
 
   (*Single-function funcdec with 0 or more params*)
