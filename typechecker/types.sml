@@ -37,12 +37,12 @@ struct
   (* Check if ty2 is a subtype of ty1
      If ty2 is a subtype of ty1, return true; otherwise, false 
      Note that a type is a subtype of itself *)
-  fun is_subtype_of(ty1, ty2,pos) = 
+  fun is_subtype_of(ty1, ty2, pos) = 
       case (ty1, ty2) of
           (_, BOTTOM) => true
         | (BOTTOM, _) => true
         | (UNIT, _) => true
         | (RECORD(_), NIL) => true
         | (NIL, RECORD(_)) => true
-        | _ => are_the_same_type(ty1, ty2,pos)
+        | _ => are_the_same_type(ty1, ty2, pos)
 end
