@@ -324,7 +324,7 @@ struct
                         in
                             if SS.member(redec_detector, namestr)
                             then (
-                              ErrorMsg.error pos (namestr ^ " is a redeclaration.");
+                              ErrorMsg.error pos ("Type name: " ^ namestr ^ " is an illegal redeclaration.");
                               true
                             )
                             else (
@@ -538,9 +538,12 @@ struct
                                               Types.BOTTOM)
                                         else (SS.add(cycle_detector, S.name(type_sym));
                                               Types.ARRAY(proc(sym), get_uref(type_sym)))
-              | A.RecordTy(fields) => Types.RECORD((fn() => map 
-                                                            (fn {name, typ, ...} => (name, proc(typ)))
-                                                            fields), 
+              | A.RecordTy(fields) => Types.RECORD((fn() => ( 
+                                                							SS.subtractList(cycle_detector, SS.toList(cycle_detector));
+                                                              map 
+                                                              (fn {name, typ, ...} => (name, proc(typ)))
+                                                              fields)
+                                                            ), 
                                                     get_uref(type_sym))
     in
         address(type_sym, absyn_ty)
