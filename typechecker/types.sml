@@ -29,7 +29,7 @@ struct
         | (STRING, STRING) => true
         | (UNIT, UNIT) => true
         | (BOTTOM, BOTTOM) => true
-        | (ARRAY(_, u1), ARRAY(_, u2)) => u1 = u2
+        | (ARRAY(_, u1), ARRAY(_, u2)) => if u1 = u2 then true else (ErrorMsg.error 0 ("Different ARRAY types."); false)
         | (RECORD(_, u1), RECORD(_, u2)) => if u1 = u2 then true else (ErrorMsg.error 0 ("Different RECORD types."); false)
         | _ => (print("Inconsistent types\nOne is " ^ tostring(ty1) ^ ", the other is " ^ tostring(ty2) ^ "\n"); false)
 
