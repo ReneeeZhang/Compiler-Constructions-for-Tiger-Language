@@ -1,7 +1,7 @@
 # common
 *.tig
 *~
-
+*.swp
 # typechecker
 typechecker/.cm/**
 typechecker/runscript.sml
