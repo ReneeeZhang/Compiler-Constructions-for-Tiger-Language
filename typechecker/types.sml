@@ -32,7 +32,7 @@ struct
         | (ARRAY(_, u1), ARRAY(_, u2)) => u1 = u2
         | (RECORD(_, u1), RECORD(_, u2)) => if u1 = u2 then true else
           (ErrorMsg.error pos ("Different RECORD types."); false)
-        | _ => (ErrorMsg.error pos ("Inconsistent types: One is " ^ tostring(ty1) ^ ", the other is " ^ tostring(ty2)); false)
+        | _ => (ErrorMsg.error pos ("Type mismatch error: " ^ tostring(ty1) ^ " and " ^ tostring(ty2)); false)
 
   (* Check if ty2 is a subtype of ty1
      If ty2 is a subtype of ty1, return true; otherwise, false 

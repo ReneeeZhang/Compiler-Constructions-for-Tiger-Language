@@ -22,7 +22,7 @@ struct
   
   fun checkint({exp,ty}, pos) = 
     (case ty of Types.INT => ()
-       | _ => ErrorMsg.error pos ("Integer Required"))  
+       | _ => ErrorMsg.error pos ("Invalid arithmetic operand : "^T.tostring(ty)))  
 
   fun check_eq_args({exp=(), ty=Types.INT}, {exp=(), ty=Types.INT},pos) = {exp=(), ty=Types.INT}
     | check_eq_args({exp=(), ty=Types.STRING}, {exp=(), ty=Types.STRING},pos) =
@@ -35,8 +35,8 @@ struct
     {exp=(), ty=Types.INT}
     | check_eq_args({exp=(), ty=Types.ARRAY(_)}, {exp=(), ty=Types.ARRAY(_)},pos) = 
     {exp=(), ty=Types.INT}
-    | check_eq_args({exp=(),ty=_}, {exp=(),ty=_},pos) = (ErrorMsg.error pos 
-    ("Illegal comparison: must be strings, ints, arrays, or records"); {exp=(), ty=Types.BOTTOM})
+    | check_eq_args(a, b,pos) = (ErrorMsg.error pos 
+    ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=(), ty=Types.BOTTOM})
 
   fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
     let
@@ -72,7 +72,9 @@ struct
           val {exp=exp1,ty=ty1} = trexp(exp)
           val {exp=exp2,ty=ty2} = trvar(var)
         in
-         (if Types.is_subtype_of(ty1, ty2,pos) then () else ErrorMsg.error pos ("Assign types not equal"); {exp=(), ty = Types.UNIT})
+         (if Types.is_subtype_of(ty1, ty2,pos) then () else ErrorMsg.error pos
+         ("Invalid assign operands : " ^ Types.tostring(ty1) ^ " and " ^
+         Types.tostring(ty2)); {exp=(), ty = Types.UNIT})
         end
 
       (*While exps*)
@@ -81,10 +83,16 @@ struct
             val {exp=exp_test, ty=ty_test} = trexp(test)
             val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body, SOME(()))
           in
-            (if Types.is_subtype_of(ty_test, Types.INT,pos) then () else ErrorMsg.error pos ("Loop condition must be int");
-             if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.is_subtype_of(ty_test, Types.INT,pos) then () else
+              ErrorMsg.error pos ("Loop condition is type "
+              ^ Types.tostring(ty_test) ^ ", type int required");
+              
+             if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
+               ErrorMsg.error pos ("Loop body is type " ^
+               Types.tostring(ty_body) ^ ", type unit required");
              {exp=(), ty=Types.UNIT})
           end
+
 
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
@@ -94,9 +102,15 @@ struct
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, SOME(()))
           in
-            (if Types.is_subtype_of(ty_lo, Types.INT,pos) then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if Types.is_subtype_of(ty_hi, Types.INT,pos) then () else ErrorMsg.error pos ("Loop bounds must be int");
-             if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else ErrorMsg.error pos ("Loop body must be type unit");
+            (if Types.is_subtype_of(ty_lo, Types.INT,pos) then () else
+              ErrorMsg.error pos ("Loop bound is type " ^
+              Types.tostring(ty_lo) ^ ", type int required");
+             if Types.is_subtype_of(ty_hi, Types.INT,pos) then () else
+               ErrorMsg.error pos ("Loop bound is type " ^
+               Types.tostring(ty_hi) ^ ", type int required");
+             if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
+               ErrorMsg.error pos ("Loop body is type " ^
+               Types.tostring(ty_body) ^ ", type unit required");
              {exp=(), ty=Types.UNIT})
           end
 
@@ -114,8 +128,12 @@ struct
               val {exp=expelse, ty=tyelse} = trexp(valOf(else'))
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if Types.is_subtype_of(tythen, tyelse,pos) then () else ErrorMsg.error pos ("Types mismatched");
-               if Types.is_subtype_of(tytest, Types.INT,pos) then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.is_subtype_of(tythen, tyelse,pos) then () else
+                ErrorMsg.error pos ("Then type of " ^ Types.tostring(tythen) ^
+                " does not match else type of " ^ Types.tostring(tyelse));
+               if Types.is_subtype_of(tytest, Types.INT,pos) then () else
+                 ErrorMsg.error pos ("If-then condition is type " ^
+                 Types.tostring(tytest) ^ ", type int required");
                {exp=(), ty = tythen})
             end
           | NONE =>
@@ -123,8 +141,11 @@ struct
               val {exp=expthen, ty=tythen} = trexp(then')
               val {exp=exptest, ty=tytest} = trexp(test)
             in
-              (if Types.is_subtype_of(tythen, Types.UNIT,pos) then () else ErrorMsg.error pos ("If-then must return unit");
-               if Types.is_subtype_of(tytest, Types.INT,pos) then () else ErrorMsg.error pos ("Test requires type INT");
+              (if Types.is_subtype_of(tythen, Types.UNIT,pos) then () else
+                ErrorMsg.error pos ("Then type is " ^ Types.tostring(tythen) ^", type unit required");
+               if Types.is_subtype_of(tytest, Types.INT,pos) then () else
+                 ErrorMsg.error pos ("If-then condition is type " ^
+                 Types.tostring(tytest) ^ ", type int required");
                {exp=(), ty=tythen})
             end
             )
@@ -300,12 +321,14 @@ struct
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}) =
     let 
       val {exp,ty} = transExp(venv,tenv,init,NONE)
-      val test = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
-                   if Types.is_subtype_of(label_ty,ty,pos) then () else
-                     ErrorMsg.error pos ("Mismatched type in declaration")
-                    | NONE => ErrorMsg.error pos ("Undefined type")
+      val type_lookup = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
+                   if Types.is_subtype_of(label_ty,ty,pos) then label_ty else
+                     (ErrorMsg.error pos ("Mismatched type in declaration");
+                     Types.BOTTOM)
+                    | NONE => (ErrorMsg.error pos ("Undefined type");
+                      Types.BOTTOM)
     in
-      {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
+      {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=type_lookup})}
     end
         
   (*Type Decs*)
