@@ -22,24 +22,27 @@ struct
     | tostring(UNIT) = "unit"
     | tostring(BOTTOM) = "bottom"
 
-  fun are_the_same_type(ty1, ty2) = (* ty * ty -> bool *)
+  fun are_the_same_type(ty1, ty2, pos) = (* ty * ty -> bool *)
       case (ty1, ty2) of
           (INT, INT) => true
-        | (NIL, NIL) => true
+        | (NIL, NIL) => true 
         | (STRING, STRING) => true
         | (UNIT, UNIT) => true
         | (BOTTOM, BOTTOM) => true
-        | (ARRAY(_, u1), ARRAY(_, u2)) => if u1 = u2 then true else (ErrorMsg.error 0 ("Different ARRAY types."); false)
-        | (RECORD(_, u1), RECORD(_, u2)) => if u1 = u2 then true else (ErrorMsg.error 0 ("Different RECORD types."); false)
-        | _ => (print("Inconsistent types\nOne is " ^ tostring(ty1) ^ ", the other is " ^ tostring(ty2) ^ "\n"); false)
+        | (ARRAY(_, u1), ARRAY(_, u2)) => u1 = u2
+        | (RECORD(_, u1), RECORD(_, u2)) => if u1 = u2 then true else
+          (ErrorMsg.error pos ("Different RECORD types."); false)
+        | _ => (ErrorMsg.error pos ("Inconsistent types: One is " ^ tostring(ty1) ^ ", the other is " ^ tostring(ty2)); false)
 
   (* Check if ty2 is a subtype of ty1
      If ty2 is a subtype of ty1, return true; otherwise, false 
      Note that a type is a subtype of itself *)
-  fun is_subtype_of(ty1, ty2) = 
+  fun is_subtype_of(ty1, ty2, pos) = 
       case (ty1, ty2) of
           (_, BOTTOM) => true
+        | (BOTTOM, _) => true
         | (UNIT, _) => true
         | (RECORD(_), NIL) => true
-        | _ => are_the_same_type(ty1, ty2)
+        | (NIL, RECORD(_)) => true
+        | _ => are_the_same_type(ty1, ty2, pos)
 end

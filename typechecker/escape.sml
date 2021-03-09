@@ -113,7 +113,7 @@ struct
           val env' = add_params(env, params)
         in
         (traverseExp(env', d+1, body); 
-         traverseDec (env', d, A.FunctionDec(t)))
+         traverseDec (env, d, A.FunctionDec(t)))
         end
       | traverseDec (env, d, A.FunctionDec([])) = env 
       | traverseDec (env, d, A.TypeDec(ty)) = env
