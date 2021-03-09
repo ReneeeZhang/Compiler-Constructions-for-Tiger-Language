@@ -85,18 +85,6 @@ struct
              {exp=(), ty=Types.UNIT})
           end
 
-          (* | trexp (A.WhileExp{test, body, pos}) = 
-          let
-            val {exp=exp_test, ty=ty_test} = trexp(test)
-            val {exp=exp_body, ty=ty_body} = trexp(body)
-          in
-            if Types.is_subtype_of(ty_test, Types.INT) 
-            then if Types.is_subtype_of(ty_body, Types.UNIT) 
-                 then {exp=(), ty=Types.UNIT})
-                 else (ErrorMsg.error pos ("Loop body must be type unit"); {exp=(), ty=Types.BOTTOM})
-            else (ErrorMsg.error pos ("Loop condition must be int"); {exp=(), ty=Types.BOTTOM})
-          end *)
-
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
           let 
@@ -146,13 +134,18 @@ struct
             val {exp=exp_size, ty=ty_size} = trexp(size)
             val {exp=exp_init, ty=ty_init} = trexp(init)
           in
-            (if Types.is_subtype_of(ty_size, Types.INT) then () else ErrorMsg.error pos ("Array size must be integer");
-             if Types.is_subtype_of(ty_init, Types.INT) then () else ErrorMsg.error pos ("Array init must be integer");
-             case S.look(tenv, typ) of SOME(Types.ARRAY(fields)) => {exp=(), ty=Types.ARRAY(fields)}
-                | SOME (_) => (ErrorMsg.error pos ("Non-array type"); {exp=(),
-                  ty=Types.BOTTOM})
-                | NONE => (ErrorMsg.error pos ("Undefined array type"); {exp=(),
-                  ty=Types.BOTTOM}))
+            (if Types.is_subtype_of(ty_size, Types.INT) then () else ErrorMsg.error pos ("Array size must be integer when creating an array");
+            
+             case S.look(tenv, typ) of 
+                  SOME(Types.ARRAY(ele_type, u)) => if Types.is_subtype_of(ty_init, ele_type)
+                                                    then {exp=(), ty=Types.ARRAY(ele_type, u)}
+                                                    else (ErrorMsg.error pos ("Array init, i.e., element type, does not have the same type as " 
+                                                                              ^ S.name(typ) ^ "'s element type when creating an array.");
+                                                          {exp={}, ty=Types.BOTTOM})  
+                | SOME (_) => (ErrorMsg.error pos (S.name(typ) ^ "has a non-array type."); 
+                               {exp=(), ty=Types.BOTTOM})
+                | NONE => (ErrorMsg.error pos ("Undefined type for " ^ S.name(typ)); 
+                           {exp=(), ty=Types.BOTTOM}))
           end
 
       (*Let Exps*)
@@ -289,7 +282,6 @@ struct
         end
 
   (*Singleton dec, venv, tenv -> venv', tenv'*)
-  (*TODO: Fun decs*)  
   (*Var decs*)
   and transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
     let val {exp,ty} = transExp(venv,tenv,init,NONE)
@@ -308,13 +300,13 @@ struct
   (*Type Decs*)
   | transDec (venv,tenv,A.TypeDec(tydec_group)) = 
     let exception UNIQUE_RECORDS
-        val unique_records_map : (string, Types.unique) H.hash_table =
+        val unique_ref_map : (string, Types.unique) H.hash_table =
             H.mkTable(HashString.hashString, op =) (128, UNIQUE_RECORDS) (* A type name(string) to unique ref map associated with each type dec group *)
         fun add_types (tenv, types) =
             case types of
               [] => tenv
             | {name, ty, pos} :: types' => let val tenv' = S.enter(tenv, name, 
-                                                             transTy(tenv, name, unique_records_map, tydec_group, ty))
+                                                             transTy(tenv, name, unique_ref_map, tydec_group, ty))
                                            in 
                                                 add_types(tenv', types')
                                            end
@@ -395,7 +387,7 @@ struct
         in {access=(), ty=T.ARROW(map #ty params', result_ty)}
         end
 
-  and transTy (tenv, type_sym, unique_records_map, tydec_group, absyn_ty) = 
+  and transTy (tenv, type_sym, unique_ref_map, tydec_group, absyn_ty) = 
         (* function find_in_tydec_group looks for the type_sym in tydec_group (Absyn.TypeDec, a list), if it exists,
         return SOME; Otherwise, NONE *)
     let val cycle_detector = SS.mkEmpty 64 
@@ -415,6 +407,23 @@ struct
                 SOME(ty) => ty
               | NONE => (ErrorMsg.error 0 ("Undefinied type: " ^ S.name(type_sym)); Types.BOTTOM) (* TODO: pos is undefined *)
         
+        (* Given a type name (type_sym), return its unique ref if this name is already in the unique_ref_map;
+           Otherwise, return a new unique ref *)
+        fun get_uref(type_sym) = 
+            let val namestr = S.name(type_sym)
+                val rec_entry = H.find unique_ref_map namestr
+            in
+                case rec_entry of
+                    SOME(uref) => uref
+                  | NONE => let val new_indicator = ref ()
+                            in
+                              (
+                                  H.insert unique_ref_map (namestr, new_indicator);
+                                  new_indicator
+                              )
+                            end
+            end
+
         (* function proc basically find out type name in ty_group in case of (mutual) recersion by calling address;
            if name does occur in the ty_group, then look up in tenv *)
         fun proc(type_sym) = (* S.symbol -> Types.ty *) 
@@ -427,29 +436,19 @@ struct
         and address(type_sym, ty) = 
             case ty of 
                 A.NameTy(sym, pos) => if SS.member(cycle_detector, S.name(sym))
-                                      then (ErrorMsg.error pos (S.name(sym) ^ " is in an illegal cycle of type declaration.");
+                                      then (ErrorMsg.error pos ("Name type: " ^ S.name(sym) ^ ", is in an illegal cycle of type declaration.");
                                             Types.BOTTOM)
                                       else (SS.add(cycle_detector, S.name(sym));
                                             proc(sym)) 
-              | A.ArrayTy(sym, _) => Types.ARRAY(proc(sym), ref()) (* TODO: not always ref ()*)
-              | A.RecordTy(fields) => 
-                let val namestr = S.name(type_sym)
-                    val rec_entry = H.find unique_records_map namestr
-                    val indicator = case rec_entry of
-                                      SOME(uref) => uref
-                                    | NONE => let val new_indicator = ref ()
-                                              in
-                                                (
-                                                    H.insert unique_records_map (namestr, new_indicator);
-                                                    new_indicator
-                                                )
-                                              end
-                in
-                    Types.RECORD((fn() => map 
-                                          (fn {name, typ, ...} => (name, proc(typ)))
-                                          fields), 
-                                  indicator)
-                end 
+              | A.ArrayTy(sym, pos) =>  if SS.member(cycle_detector, S.name(sym))
+                                        then (ErrorMsg.error pos ("Array type: " ^ S.name(sym) ^ ", is in an illegal cycle of type declaration.");
+                                              Types.BOTTOM)
+                                        else (SS.add(cycle_detector, S.name(sym));
+                                              Types.ARRAY(proc(sym), get_uref(type_sym)))
+              | A.RecordTy(fields) => Types.RECORD((fn() => map 
+                                                            (fn {name, typ, ...} => (name, proc(typ)))
+                                                            fields), 
+                                                    get_uref(type_sym))
     in
         address(type_sym, absyn_ty)
     end
