@@ -524,7 +524,7 @@ struct
         fun lookup_in_tenv(type_sym) = (* S.symbol -> Types.ty *)
             case S.look(tenv, type_sym) of
                 SOME(ty) => ty
-              | NONE => (ErrorMsg.error 0 ("Undefinied type: " ^ S.name(type_sym)); Types.BOTTOM) (* TODO: pos is undefined *)
+              | NONE => (ErrorMsg.error 0 ("Undefined type: " ^ S.name(type_sym)); Types.BOTTOM) (* TODO: pos is undefined *)
         
         (* Given a type name (type_sym), return its unique ref if this name is already in the unique_ref_map;
            Otherwise, return a new unique ref *)
@@ -543,6 +543,31 @@ struct
                             end
             end
 
+        fun check_fields_decl(type_sym, fields) = (* A.field list -> unit *)
+            let 
+
+                fun aux fs = (* A.field list -> unit *)
+                    case fs of
+                        [] => ()
+                      | {name, escape, typ, pos}::fs' => 
+                        if has_been_declared({name=name, escape=escape, typ=typ, pos=pos})
+                        then aux fs'
+                        else ErrorMsg.error pos ("In record type " ^ S.name(type_sym) ^ ", its field " ^ S.name(name) ^ "'s type, " 
+                                              ^ S.name(typ) ^ " is not declared.")
+
+                and has_been_declared(f: {name: A.symbol, escape: bool ref, typ: A.symbol, pos: A.pos}) = (* A.field -> bool *)
+                    let val field_typ = #typ f
+                    in
+                      case lookup_in_tydec_group field_typ of
+                          NONE => (case S.look(tenv, field_typ) of
+                                      SOME(_) => true
+                                    | NONE => false)
+                        | SOME(_) => true
+                    end
+            in
+                aux fields
+            end
+
         (* function proc basically find out type name in ty_group in case of (mutual) recersion by calling address;
            if name does occur in the ty_group, then look up in tenv *)
         fun proc(type_sym) = (* S.symbol -> Types.ty *) 
@@ -551,7 +576,8 @@ struct
               | SOME(ty) => address(type_sym, ty) (* If in the tydec_group, then recursively call proc on each ty *)
 
         (* function address is mutually recusive to proc, handling cases where type name is found in type dec group 
-           argv: ty is the corresponding type to type_sym *)
+           argv: ty is the corresponding type to type_sym.
+           type_sym is the lhs name of an expression *)
         and address(type_sym, ty) = 
             case ty of 
                 A.NameTy(sym, pos) => if SS.member(cycle_detector, S.name(type_sym))
@@ -564,13 +590,24 @@ struct
                                               Types.BOTTOM)
                                         else (SS.add(cycle_detector, S.name(type_sym));
                                               Types.ARRAY(proc(sym), get_uref(type_sym)))
-              | A.RecordTy(fields) => Types.RECORD((fn() => ( 
+              | A.RecordTy(fields) => let val thunk = fn() => ( 
+                                                                SS.subtractList(cycle_detector, SS.toList(cycle_detector)); (* Clear cycle detector *)
+                                                                map (fn {name, typ, ...} => (name, proc(typ))) fields
+                                                              )
+                                      in
+                                          (
+                                            check_fields_decl(type_sym, fields);
+                                            Types.RECORD(thunk, get_uref(type_sym))
+                                          )
+                                      end
+                                                              
+                                      (* Types.RECORD((fn() => ( 
                                                 							SS.subtractList(cycle_detector, SS.toList(cycle_detector));
                                                               map 
                                                               (fn {name, typ, ...} => (name, proc(typ)))
                                                               fields)
                                                             ), 
-                                                    get_uref(type_sym))
+                                                    get_uref(type_sym)) *)
     in
         address(type_sym, absyn_ty)
     end
