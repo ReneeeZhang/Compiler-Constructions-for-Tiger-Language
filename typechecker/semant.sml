@@ -194,6 +194,7 @@ struct
         let val {exp=_, ty=ty_field_exp} = trexp(argexp) in
           Types.is_subtype_of(param, ty_field_exp, pos) end
       ) andalso check_args_and_params_match(argexplist', paramlist')
+	  | _ => (*Impossible state*) false
     in
 		(case S.look(venv, func) of
 			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty)}) => 
@@ -454,11 +455,13 @@ struct
   | processFunDecList(venv,tenv, A.FunctionDec([fd])) = transDec(venv,tenv,A.FunctionDec([fd]))
   | processFunDecList(venv,tenv, A.FunctionDec(fd::otherfds)) =
     (transDec(venv,tenv,A.FunctionDec([fd])); processFunDecList(venv,tenv,A.FunctionDec(otherfds)))
+  | processFunDecList(venv,tenv, _) = ((*Impossible state*){venv=venv,tenv=tenv})
 
   
   and collectHeadersFromFunDecList(venv, tenv, A.FunctionDec([])) = venv
   | collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(fundeclist)) =
     foldl (fn(fundec, venv) => S.enter(venv, #name fundec, getFunDecHeader(fundec, tenv))) venv fundeclist
+  | collectHeadersFromFunDecList(venv, tenv, _) = ((*Impossible state*)venv)
   
   and getFunDecHeader({name, params, body, pos,
         result=NONE}, tenv) =
