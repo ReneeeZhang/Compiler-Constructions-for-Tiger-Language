@@ -544,26 +544,21 @@ struct
             end
 
         fun check_fields_decl(type_sym, fields) = (* A.field list -> unit *)
-            let 
-
-                fun aux fs = (* A.field list -> unit *)
+            let fun aux fs = (* A.field list -> unit *)
                     case fs of
                         [] => ()
                       | {name, escape, typ, pos}::fs' => 
-                        if has_been_declared({name=name, escape=escape, typ=typ, pos=pos})
+                        if has_been_declared typ
                         then aux fs'
                         else ErrorMsg.error pos ("In record type " ^ S.name(type_sym) ^ ", its field " ^ S.name(name) ^ "'s type, " 
-                                              ^ S.name(typ) ^ " is not declared.")
+                                                  ^ S.name(typ) ^ " is not declared.")
 
-                and has_been_declared(f: {name: A.symbol, escape: bool ref, typ: A.symbol, pos: A.pos}) = (* A.field -> bool *)
-                    let val field_typ = #typ f
-                    in
-                      case lookup_in_tydec_group field_typ of
-                          NONE => (case S.look(tenv, field_typ) of
+                and has_been_declared(type_sym) = (* A.symbol -> bool *)
+                      case lookup_in_tydec_group type_sym of
+                          NONE => (case S.look(tenv, type_sym) of
                                       SOME(_) => true
                                     | NONE => false)
                         | SOME(_) => true
-                    end
             in
                 aux fields
             end
@@ -600,14 +595,6 @@ struct
                                             Types.RECORD(thunk, get_uref(type_sym))
                                           )
                                       end
-                                                              
-                                      (* Types.RECORD((fn() => ( 
-                                                							SS.subtractList(cycle_detector, SS.toList(cycle_detector));
-                                                              map 
-                                                              (fn {name, typ, ...} => (name, proc(typ)))
-                                                              fields)
-                                                            ), 
-                                                    get_uref(type_sym)) *)
     in
         address(type_sym, absyn_ty)
     end
