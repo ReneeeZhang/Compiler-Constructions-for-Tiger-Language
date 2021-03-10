@@ -16,7 +16,7 @@ struct
 
   structure SymbolSet = HashSetFn (struct type hash_key = string
                                           fun hashVal s = HashString.hashString s
-                                          fun sameKey(s1, s2) = s1 = s2
+                                          fun sameKey(s1: hash_key, s2: hash_key) = s1 = s2
                                     end)
   structure SS = SymbolSet
   
