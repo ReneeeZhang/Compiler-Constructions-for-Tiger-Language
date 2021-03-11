@@ -1,6 +1,13 @@
 # common
 *.tig
 *~
+*.swp
+# typechecker
+typechecker/.cm/**
+typechecker/runscript.sml
+typechecker/tycheck_fail.sml
+typechecker/tycheck_pass.sml
+typechecker/runtests.sml
 
 # parser
 parser/.cm/**
