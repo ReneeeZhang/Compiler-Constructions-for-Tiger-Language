@@ -2,6 +2,10 @@
 *.tig
 *~
 *.swp
+# ir
+ir/.cm/**
+ir/runscript.sml
+
 # typechecker
 typechecker/.cm/**
 typechecker/runscript.sml
