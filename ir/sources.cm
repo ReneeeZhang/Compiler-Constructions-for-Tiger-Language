@@ -1,12 +1,13 @@
 Group is 
 
+translate.sig
 printtree.sml
 temp.sig
 temp.sml
 tree.sml
 ../typechecker/escape.sml
 translate.sml
-../typechecker/main.sml
+main.sml
 semant.sml
 ../typechecker/env.sml
 ../typechecker/types.sml

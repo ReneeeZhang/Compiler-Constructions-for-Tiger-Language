@@ -1,6 +1,6 @@
 structure Semant :> 
 sig 
-  val transProg : Absyn.exp -> unit   
+  val transProg : Absyn.exp -> {exp:Translate.exp, ty:Types.ty} 
 end = 
 struct
 
@@ -13,7 +13,7 @@ struct
   structure E = Env
   structure S = Symbol
   structure H = HashTable
-
+  structure Trans = Translate
   structure SymbolSet = HashSetFn (struct type hash_key = string
                                           fun hashVal s = HashString.hashString s
                                           fun sameKey(s1: hash_key, s2: hash_key) = s1 = s2
@@ -24,44 +24,106 @@ struct
     (case ty of Types.INT => ()
        | _ => ErrorMsg.error pos ("Invalid arithmetic operand : "^T.tostring(ty)))  
 
-  fun check_eq_args({exp=(), ty=Types.INT}, {exp=(), ty=Types.INT},pos) = {exp=(), ty=Types.INT}
-    | check_eq_args({exp=(), ty=Types.STRING}, {exp=(), ty=Types.STRING},pos) =
-    {exp=(), ty=Types.INT}
-    | check_eq_args({exp=(), ty=Types.RECORD(_)}, {exp=(), ty=Types.NIL},pos) =
-    {exp=(), ty=Types.INT}
-    | check_eq_args({exp=(), ty=Types.NIL}, {exp=(), ty=Types.RECORD(_)},pos) =
-    {exp=(), ty=Types.INT}
-    | check_eq_args({exp=(), ty=Types.RECORD(_)}, {exp=(), ty=Types.RECORD(_)},pos) =
-    {exp=(), ty=Types.INT}
-    | check_eq_args({exp=(), ty=Types.ARRAY(_)}, {exp=(), ty=Types.ARRAY(_)},pos) = 
-    {exp=(), ty=Types.INT}
+  fun check_eq_args({exp=_, ty=Types.INT}, {exp=_, ty=Types.INT},pos) = {exp=Trans.Un(), ty=Types.INT}
+    | check_eq_args({exp=_, ty=Types.STRING}, {exp=_, ty=Types.STRING},pos) =
+    {exp=Trans.Un(), ty=Types.INT}
+    | check_eq_args({exp=_, ty=Types.RECORD(_)}, {exp=_, ty=Types.NIL},pos) =
+    {exp=Trans.Un(), ty=Types.INT}
+    | check_eq_args({exp=_, ty=Types.NIL}, {exp=_, ty=Types.RECORD(_)},pos) =
+    {exp=Trans.Un(), ty=Types.INT}
+    | check_eq_args({exp=_, ty=Types.RECORD(_)}, {exp=_, ty=Types.RECORD(_)},pos) =
+    {exp=Trans.Un(), ty=Types.INT}
+    | check_eq_args({exp=_, ty=Types.ARRAY(_)}, {exp=_, ty=Types.ARRAY(_)},pos) = 
+    {exp=Trans.Un(), ty=Types.INT}
     | check_eq_args(a, b,pos) = (ErrorMsg.error pos 
-    ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=(), ty=Types.BOTTOM})
+    ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=Trans.Un(), ty=Types.BOTTOM})
 
   fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
     let
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
+        let
+          val lexpty = trexp left
+          val rexpty = trexp right
+        in 
+         (checkint(lexpty, pos); checkint(rexpty, pos);
+          {exp=Trans.op_exp(#exp lexpty, #exp rexpty, A.PlusOp), ty=Types.INT})
+        end
       | trexp (A.OpExp{left,oper=A.MinusOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
+        let
+          val lexpty = trexp left
+          val rexpty = trexp right
+        in 
+         (checkint(lexpty, pos); checkint(rexpty, pos);
+          {exp=Trans.op_exp(#exp lexpty, #exp rexpty, A.MinusOp), ty=Types.INT})
+        end
       | trexp (A.OpExp{left,oper=A.TimesOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
+        let
+          val lexpty = trexp left
+          val rexpty = trexp right
+        in 
+         (checkint(lexpty, pos); checkint(rexpty, pos);
+          {exp=Trans.op_exp(#exp lexpty, #exp rexpty, A.TimesOp), ty=Types.INT})
+        end
       | trexp (A.OpExp{left,oper=A.DivideOp,right,pos}) = 
-                 (checkint(trexp left, pos); checkint(trexp right, pos);
-                  {exp=(), ty=Types.INT})
-      | trexp (A.OpExp{left,oper=A.LeOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
-      | trexp (A.OpExp{left,oper=A.LtOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
-      | trexp (A.OpExp{left,oper=A.GeOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
-      | trexp (A.OpExp{left,oper=A.GtOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
-      | trexp (A.OpExp{left,oper=A.EqOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
-      | trexp (A.OpExp{left,oper=A.NeqOp,right,pos}) = check_eq_args(trexp(left), trexp(right), pos)
-      | trexp (A.IntExp(intval)) = {exp=(), ty=Types.INT}
-      | trexp (A.StringExp(stringval, pos)) = {exp=(), ty=Types.STRING}
-      | trexp (A.NilExp) = {exp=(), ty = Types.NIL} 
+        let
+          val lexpty = trexp left
+          val rexpty = trexp right
+        in 
+         (checkint(lexpty, pos); checkint(rexpty, pos);
+          {exp=Trans.op_exp(#exp lexpty, #exp rexpty, A.DivideOp), ty=Types.INT})
+        end
+      | trexp (A.OpExp{left,oper=A.LeOp,right,pos}) =
+        let 
+          val lexpty = trexp left
+          val rexpty = trexp right
+          val check = check_eq_args(lexpty, rexpty, pos)
+        in
+          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.LeOp), ty=(#ty check)}
+        end 
+      | trexp (A.OpExp{left,oper=A.LtOp,right,pos}) =
+        let 
+          val lexpty = trexp left
+          val rexpty = trexp right
+          val check = check_eq_args(lexpty, rexpty, pos)
+        in
+          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.LtOp), ty=(#ty check)}
+        end 
+      | trexp (A.OpExp{left,oper=A.GeOp,right,pos}) =
+        let 
+          val lexpty = trexp left
+          val rexpty = trexp right
+          val check = check_eq_args(lexpty, rexpty, pos)
+        in
+          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.GeOp), ty=(#ty check)}
+        end 
+      | trexp (A.OpExp{left,oper=A.GtOp,right,pos}) =
+        let 
+          val lexpty = trexp left
+          val rexpty = trexp right
+          val check = check_eq_args(lexpty, rexpty, pos)
+        in
+          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.GtOp), ty=(#ty check)}
+        end 
+      | trexp (A.OpExp{left,oper=A.EqOp,right,pos}) = 
+        let 
+          val lexpty = trexp left
+          val rexpty = trexp right
+          val check = check_eq_args(lexpty, rexpty, pos)
+        in
+          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.EqOp), ty=(#ty check)}
+        end 
+      | trexp (A.OpExp{left,oper=A.NeqOp,right,pos}) = 
+        let 
+          val lexpty = trexp left
+          val rexpty = trexp right
+          val check = check_eq_args(lexpty, rexpty, pos)
+        in
+          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.NeqOp), ty=(#ty check)}
+        end 
+      | trexp (A.IntExp(intval)) = {exp=Trans.int_exp(intval), ty=Types.INT}
+      | trexp (A.StringExp(stringval, pos)) = {exp=Trans.Un(), ty=Types.STRING}
+      | trexp (A.NilExp) = {exp=Trans.Un(), ty = Types.NIL} 
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
@@ -74,7 +136,7 @@ struct
         in
          (if Types.is_subtype_of(ty1, ty2,pos) then () else ErrorMsg.error pos
          ("Invalid assign operands : " ^ Types.tostring(ty1) ^ " and " ^
-         Types.tostring(ty2)); {exp=(), ty = Types.UNIT})
+         Types.tostring(ty2)); {exp=Trans.Un(), ty = Types.UNIT})
         end
 
       (*While exps*)
@@ -90,7 +152,7 @@ struct
              if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
                ErrorMsg.error pos ("Loop body is type " ^
                Types.tostring(ty_body) ^ ", type unit required");
-             {exp=(), ty=Types.UNIT})
+             {exp=Trans.Un(), ty=Types.UNIT})
           end
 
 
@@ -111,14 +173,14 @@ struct
              if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
                ErrorMsg.error pos ("Loop body is type " ^
                Types.tostring(ty_body) ^ ", type unit required");
-             {exp=(), ty=Types.UNIT})
+             {exp=Trans.Un(), ty=Types.UNIT})
           end
 
       (*Break Exps*)
         | trexp(A.BreakExp(pos)) = 
-          (case isLoop of SOME(()) => {exp=(), ty=Types.UNIT}
+          (case isLoop of SOME(()) => {exp=Trans.Un(), ty=Types.UNIT}
              | NONE => (ErrorMsg.error pos ("Break must be inside loop");
-               {exp=(), ty=Types.UNIT}))
+               {exp=Trans.Un(), ty=Types.UNIT}))
 
       (*If Exps*)
         | trexp (A.IfExp{test, then', else', pos}) = 
@@ -134,7 +196,7 @@ struct
                if Types.is_subtype_of(tytest, Types.INT,pos) then () else
                  ErrorMsg.error pos ("If-then condition is type " ^
                  Types.tostring(tytest) ^ ", type int required");
-               {exp=(), ty = tythen})
+               {exp=Trans.if_else_exp(exptest, expthen, expelse), ty = tythen})
             end
           | NONE =>
             let 
@@ -146,7 +208,7 @@ struct
                if Types.is_subtype_of(tytest, Types.INT,pos) then () else
                  ErrorMsg.error pos ("If-then condition is type " ^
                  Types.tostring(tytest) ^ ", type int required");
-               {exp=(), ty=tythen})
+               {exp=Trans.Un(), ty=tythen})
             end
             )
 
@@ -160,14 +222,14 @@ struct
             
              case S.look(tenv, typ) of 
                   SOME(Types.ARRAY(ele_type, u)) => if Types.is_subtype_of(ty_init, ele_type, pos)
-                                                    then {exp=(), ty=Types.ARRAY(ele_type, u)}
+                                                    then {exp=Trans.Un(), ty=Types.ARRAY(ele_type, u)}
                                                     else (ErrorMsg.error pos ("Array init, i.e., element type, does not have the same type as " 
                                                                               ^ S.name(typ) ^ "'s element type when creating an array.");
-                                                          {exp={}, ty=Types.BOTTOM})  
+                                                          {exp=Trans.Un(), ty=Types.BOTTOM})  
                 | SOME (_) => (ErrorMsg.error pos (S.name(typ) ^ "has a non-array type."); 
-                               {exp=(), ty=Types.BOTTOM})
+                               {exp=Trans.Un(), ty=Types.BOTTOM})
                 | NONE => (ErrorMsg.error pos ("Undefined type for " ^ S.name(typ)); 
-                           {exp=(), ty=Types.BOTTOM}))
+                           {exp=Trans.Un(), ty=Types.BOTTOM}))
           end
 
       (*Let Exps*)
@@ -177,7 +239,7 @@ struct
         end
  
       (*Seq Exps*)
-      | trexp (A.SeqExp([])) = {exp=(), ty=Types.UNIT}
+      | trexp (A.SeqExp([])) = {exp=Trans.Un(), ty=Types.UNIT}
       | trexp (A.SeqExp([t])) = trexp (#1 t)
       | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
 
@@ -200,17 +262,17 @@ struct
 			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty)}) => 
 				(if List.length func_param_ty_list <> List.length args then (
                           ErrorMsg.error pos ("Function with " ^ Int.toString(List.length func_param_ty_list) ^ " parameters called with " ^ Int.toString(List.length args) ^ " arguments"); 
-                          {exp=(), ty=Types.BOTTOM}
+                          {exp=Trans.Un(), ty=Types.BOTTOM}
                           )
 						  else (
-							  if check_args_and_params_match(args, func_param_ty_list) then {exp=(), ty=return_ty}
-							  else  (ErrorMsg.error pos ("Function argument list types don't match expected parameters"); {exp=(), ty=Types.BOTTOM})
+							  if check_args_and_params_match(args, func_param_ty_list) then {exp=Trans.Un(), ty=return_ty}
+							  else  (ErrorMsg.error pos ("Function argument list types don't match expected parameters"); {exp=Trans.Un(), ty=Types.BOTTOM})
 						  )
 				)
 			| SOME(_) => (ErrorMsg.error pos ("Non-function symbol called: " ^
-            S.name(func)); {exp=(), ty=Types.BOTTOM})
+            S.name(func)); {exp=Trans.Un(), ty=Types.BOTTOM})
             | NONE => (ErrorMsg.error pos ("Undefined function name: " ^
-            S.name(func)); {exp=(), ty=Types.BOTTOM})
+            S.name(func)); {exp=Trans.Un(), ty=Types.BOTTOM})
 		)
     end
 
@@ -223,11 +285,11 @@ struct
                       if List.length(decl_fields) <> List.length(given_fields) (* 2 field lists with inconsistent length --> error *)
                       then (
                             ErrorMsg.error pos (S.name(typ) ^ " does not have the same number of fields as declared in record exp."); 
-                            {exp=(), ty=Types.BOTTOM}
+                            {exp=Trans.Un(), ty=Types.BOTTOM}
                             )
                       else let fun aux(decl_fields, given_fields) = 
                                   case (decl_fields, given_fields) of
-                                      ([], []) => {exp=(), ty=Types.RECORD(thunk, u)}
+                                      ([], []) => {exp=Trans.Un(), ty=Types.RECORD(thunk, u)}
                                     | ((s1, e, p)::decl_fields', (s2, ty)::given_fields') => 
                                       if s1 = s2
                                       then let val {exp=_, ty=ty_field_exp} = trexp(e)
@@ -239,15 +301,15 @@ struct
                                               else ( (* Field types are inconsistent *)
                                                   
                                                   ErrorMsg.error p (S.name(typ) ^ "'s field " ^ S.name(s1) ^ "'s type is not consistent with the declared in the record exp."); 
-                                                  {exp=(), ty=Types.BOTTOM}
+                                                  {exp=Trans.Un(), ty=Types.BOTTOM}
                                               )
                                             
                                             end
                                       else ( (* Field names are inconsistent *)
                                         ErrorMsg.error p (S.name(s1) ^ " should have the same field name as " ^ S.name(s2) ^ " in the record exp."); 
-                                        {exp=(), ty=Types.BOTTOM}
+                                        {exp=Trans.Un(), ty=Types.BOTTOM}
                                       )
-                                    | _ => {exp=(), ty=Types.BOTTOM} (* This won't happen because the length of 2 argv is promised to be the same *)
+                                    | _ => {exp=Trans.Un(), ty=Types.BOTTOM} (* This won't happen because the length of 2 argv is promised to be the same *)
                             in
                                 aux(decl_fields, given_fields)
                             end
@@ -256,19 +318,19 @@ struct
               end
             | SOME(_) => (
                           ErrorMsg.error pos ("Non-record type"); 
-                          {exp=(), ty=Types.BOTTOM}
+                          {exp=Trans.Un(), ty=Types.BOTTOM}
                           )
             | NONE => (
                         ErrorMsg.error pos ("Undefined record type");
-                        {exp=(), ty=Types.BOTTOM}
+                        {exp=Trans.Un(), ty=Types.BOTTOM}
                       )
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
        (case S.look(venv,id) of SOME({access=(), ty=ty}) =>
-            {exp=(), ty = ty}
+            {exp=Trans.Un(), ty = ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
-                   {exp=(), ty=Types.INT}))
+                   {exp=Trans.Un(), ty=Types.INT}))
 
       (* Array vars *)
       | trvar (A.SubscriptVar(var, expression, pos)) = 
@@ -278,9 +340,9 @@ struct
             val {exp=exp_exp, ty=exp_ty} = trexp expression
           in
             (if Types.is_subtype_of(exp_ty, Types.INT,pos) then () else ErrorMsg.error pos ("Array index must be int"); 
-             {exp=(), ty=ty})
+             {exp=Trans.Un(), ty=ty})
           end
-        | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=(), ty=Types.UNIT}))
+        | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=Trans.Un(), ty=Types.UNIT}))
 
       (* Field vars *)
       | trvar (A.FieldVar(var, name, pos)) = 
@@ -294,9 +356,9 @@ struct
             let
               val fieldlist = recfun()
             in
-              {exp=(), ty=findfield(fieldlist)}
+              {exp=Trans.Un(), ty=findfield(fieldlist)}
             end
-             | _ => (ErrorMsg.error pos ("Not a record type: "^S.name(name)); {exp=(),
+             | _ => (ErrorMsg.error pos ("Not a record type: "^S.name(name)); {exp=Trans.Un(),
                ty=Types.BOTTOM}))         
         end
     in
@@ -600,6 +662,6 @@ struct
     end
 
   fun transProg (tree : Absyn.exp) = 
-    (transExp(E.base_venv, E.base_tenv, tree,NONE);())
+    (transExp(E.base_venv, E.base_tenv, tree,NONE))
     
 end
