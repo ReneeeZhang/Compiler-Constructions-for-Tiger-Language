@@ -1,22 +1,17 @@
 Group is 
 
+translate.sig
 printtree.sml
-tree.sml
 temp.sig
 temp.sml
-frame.sig
-mips_frame.sml
-
-(* from typechecker *)
+tree.sml
 ../typechecker/escape.sml
-../typechecker/translate.sml (* need to be updated *)
-../typechecker/main.sml
-../typechecker/semant.sml
+translate.sml
+main.sml
+semant.sml
 ../typechecker/env.sml
 ../typechecker/types.sml
 ../typechecker/env.sig
-
-(* from parser *)
 ../parser-with-absyn-tree-generation/absyn.sml
 ../parser-with-absyn-tree-generation/errormsg.sml
 ../parser-with-absyn-tree-generation/prabsyn.sml
