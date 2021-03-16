@@ -38,7 +38,7 @@ struct
     | check_eq_args(a, b,pos) = (ErrorMsg.error pos 
     ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=Trans.Un(), ty=Types.BOTTOM})
 
-  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
+  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : Temp.label option) =
     let
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
@@ -143,7 +143,9 @@ struct
         | trexp (A.WhileExp{test, body, pos}) = 
           let
             val {exp=exp_test, ty=ty_test} = trexp(test)
-            val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body, SOME(()))
+            val done_label = Trans.get_donelabel()
+            val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body,
+            SOME(done_label))
           in
             (if Types.is_subtype_of(ty_test, Types.INT,pos) then () else
               ErrorMsg.error pos ("Loop condition is type "
@@ -152,7 +154,7 @@ struct
              if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
                ErrorMsg.error pos ("Loop body is type " ^
                Types.tostring(ty_body) ^ ", type unit required");
-             {exp=Trans.while_exp(exp_test, exp_body), ty=Types.UNIT})
+             {exp=Trans.while_exp(exp_test, exp_body, done_label), ty=Types.UNIT})
           end
 
 
@@ -162,7 +164,9 @@ struct
             val venv' = S.enter(venv, var, {access=(), ty=Types.INT})
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
-            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, SOME(()))
+            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, (*add
+            label*)
+            NONE)
           in
             (if Types.is_subtype_of(ty_lo, Types.INT,pos) then () else
               ErrorMsg.error pos ("Loop bound is type " ^
@@ -178,7 +182,7 @@ struct
 
       (*Break Exps*)
         | trexp(A.BreakExp(pos)) = 
-          (case isLoop of SOME(()) => {exp=Trans.Un(), ty=Types.UNIT}
+          (case isLoop of SOME(lab) => {exp=Trans.break_exp(lab), ty=Types.UNIT}
              | NONE => (ErrorMsg.error pos ("Break must be inside loop");
                {exp=Trans.Un(), ty=Types.UNIT}))
 

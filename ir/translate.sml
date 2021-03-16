@@ -69,6 +69,8 @@ struct
       Nx(seq[cond'(t,f), T.LABEL t, T.EXP(e'), T.LABEL f])
     end
 
+  fun break_exp (lab) = Nx(T.JUMP(T.NAME(lab), [lab]))
+
   fun seq_exp(head, tail) = 
     let 
       val head' = unEx head
@@ -78,15 +80,16 @@ struct
     end
 
   fun unit_exp() = Ex(T.CONST 0)
-      
 
-  fun while_exp (cond, body) = 
+  (* Get done label for while/for loops, need to pass through transExp *)
+  fun get_donelabel () = Temp.newlabel()
+
+  fun while_exp (cond, body, done) = 
     let
       val cond' = unCx cond
       val body' = unNx body
       val test = Temp.newlabel()
       val cont = Temp.newlabel()
-      val done = Temp.newlabel()
     in
       Nx(seq[T.LABEL test, cond'(cont, done), T.LABEL cont, body',
       T.JUMP(T.NAME(test), [test]), T.LABEL done])
