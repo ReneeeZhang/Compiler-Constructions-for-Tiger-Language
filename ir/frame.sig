@@ -8,7 +8,7 @@ sig
     val allocLocal : frame -> bool -> access (* allocate a new local variable in a frame; The boolean argument to allocLocal 
                                                 specifies whether the new variable escapes and needs to go in the frame; 
                                                 if it is false, then the variable can be allocated in a register. *)
-
+    (* Uncomment as needed - for advanced functionalities *)
     (* val FP : Temp.temp 
     val wordSize: int 
     val exp : access -> Tree.exp -> Tree.exp
