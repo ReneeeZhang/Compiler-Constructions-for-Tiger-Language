@@ -10,6 +10,8 @@ tree.sml
 translate.sml
 main.sml
 semant.sml
+frame.sig
+mips_frame.sml
 ../typechecker/env.sml
 ../typechecker/types.sml
 ../typechecker/env.sig
@@ -25,4 +27,3 @@ semant.sml
 $/basis.cm
 $/smlnj-lib.cm
 $/ml-yacc-lib.cm
-
