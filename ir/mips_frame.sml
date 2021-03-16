@@ -4,21 +4,20 @@ struct
     (* TODO: view shift *)
     datatype access = InFrame of int
                     | InReg of Temp.temp
-    type frame = {formals: access list, view_shift: unit, numlocals: int, name: Temp.label, sp: int ref}
+    type frame = {formals: access list, view_shift: unit, numlocals: int ref, name: Temp.label}
 
     fun newFrame {name=n, formals=fo} = 
-        let val curr = ref 0
+        let val curr = ref 0 (* current number of locals *)
         in
             {
                 formals = map 
                         (fn (escaped) => if escaped 
-                                         then (curr := !curr - 4; InFrame(!curr)) 
+                                         then (curr := !curr + 1; InFrame(!curr * (~4))) 
                                          else InReg(Temp.newtemp())) 
                         fo,
                 view_shift = (),
-                numlocals = 0,
-                name = n,
-                sp = curr
+                numlocals = ref (!curr),
+                name = n
             }
         end
 
@@ -30,6 +29,6 @@ struct
     
     fun allocLocal (fr: frame) escaped = 
         if escaped
-        then ((#sp fr) := !(#sp fr) - 4; InFrame(!(#sp fr)))
+        then ((#numlocals fr) := !(#numlocals fr) + 1; InFrame(!(#numlocals fr) * (~4)))
         else InReg(Temp.newtemp())
 end
