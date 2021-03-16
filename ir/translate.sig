@@ -11,7 +11,10 @@ sig
   val int_exp : int -> exp 
   val op_exp : exp * exp * Absyn.oper -> exp
   val cond_exp : exp * exp * Absyn.oper -> exp
+  val while_exp : exp * exp -> exp
   val if_else_exp : exp * exp * exp -> exp
-
+  val unit_exp : unit -> exp
+  val seq_exp : exp * exp -> exp
+  val if_exp : exp * exp -> exp
 end
 

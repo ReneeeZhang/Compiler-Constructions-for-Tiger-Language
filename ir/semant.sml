@@ -152,7 +152,7 @@ struct
              if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
                ErrorMsg.error pos ("Loop body is type " ^
                Types.tostring(ty_body) ^ ", type unit required");
-             {exp=Trans.Un(), ty=Types.UNIT})
+             {exp=Trans.while_exp(exp_test, exp_body), ty=Types.UNIT})
           end
 
 
@@ -208,7 +208,7 @@ struct
                if Types.is_subtype_of(tytest, Types.INT,pos) then () else
                  ErrorMsg.error pos ("If-then condition is type " ^
                  Types.tostring(tytest) ^ ", type int required");
-               {exp=Trans.Un(), ty=tythen})
+               {exp=Trans.if_exp(exptest, expthen), ty=tythen})
             end
             )
 
@@ -239,9 +239,15 @@ struct
         end
  
       (*Seq Exps*)
-      | trexp (A.SeqExp([])) = {exp=Trans.Un(), ty=Types.UNIT}
+      | trexp (A.SeqExp([])) = {exp=Trans.unit_exp(), ty=Types.UNIT}
       | trexp (A.SeqExp([t])) = trexp (#1 t)
-      | trexp (A.SeqExp(h::t)) = (trexp (#1 h); trexp(A.SeqExp(t)))
+      | trexp (A.SeqExp(h::t)) = 
+        let 
+          val head = trexp (#1 h)
+          val tail = trexp(A.SeqExp(t))
+        in
+          {exp=Trans.seq_exp((#exp head), (#exp tail)), ty=(#ty tail)}
+        end
 
 	  (*Call Exps*)
 	  | trexp (A.CallExp({func, args, pos})) =
