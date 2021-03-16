@@ -1,19 +1,20 @@
 Group is 
 
 printtree.sml
+tree.sml
 temp.sig
 temp.sml
 frame.sig
 mips_frame.sml
 
 (* from typechecker *)
-../tychecker/escape.sml
-../tychecker/translate.sml (* need to be updated *)
-../tychecker/main.sml
-../tychecker/semant.sml
-../tychecker/env.sml
-../tychecker/types.sml
-../tychecker/env.sig
+../typechecker/escape.sml
+../typechecker/translate.sml (* need to be updated *)
+../typechecker/main.sml
+../typechecker/semant.sml
+../typechecker/env.sml
+../typechecker/types.sml
+../typechecker/env.sig
 
 (* from parser *)
 ../parser-with-absyn-tree-generation/absyn.sml
