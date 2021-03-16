@@ -9,6 +9,8 @@ tree.sml
 translate.sml
 main.sml
 semant.sml
+frame.sig
+mips_frame.sml
 ../typechecker/env.sml
 ../typechecker/types.sml
 ../typechecker/env.sig
