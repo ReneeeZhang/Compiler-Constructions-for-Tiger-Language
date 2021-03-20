@@ -2,9 +2,11 @@
 *.tig
 *~
 *.swp
+
 # ir
 ir/.cm/**
 ir/runscript.sml
+ir/test_mips_frame.sml
 
 # typechecker
 typechecker/.cm/**
