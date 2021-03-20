@@ -3,13 +3,19 @@ structure Translate : TRANSLATE =
 struct 
   structure T = Tree
   structure A = Absyn
+
+  type level = int (* may not be int *)
+  type access = level * MipsFrame.access
+
   datatype exp = Ex of T.exp
                | Nx of T.stm
                | Cx of T.label * T.label -> T.stm
                | Un of unit
+  
   fun seq ([a,b]) = T.SEQ(a,b)
     | seq ([a]) = a
     | seq (h::t) = T.SEQ(h, seq(t))
+  
   fun unEx (Ex e) = e
     | unEx(Cx genstm) = 
       let 
