@@ -6,6 +6,9 @@ struct
   structure PT = Printtree
   structure T = Tree
 
+  fun print_treelist ([]) = ()
+    | print_treelist (h::t) = (PT.printtree(TextIO.stdOut, h); print_treelist t)
+
   fun esc filename = 
     let 
       val ast = P.parse filename
@@ -19,11 +22,18 @@ struct
       (F.findEscape ast; S.transProg(ast))
     end
   fun print filename = 
+    let 
+      val ast = P.parse filename
+      val checked = (F.findEscape ast; S.transProg ast)
+    in
+      PT.printtree(TextIO.stdOut, T.EXP(Translate.unEx(#exp checked)))
+    end
+  fun lin filename = 
     let
       val ast = P.parse filename
       val checked = (F.findEscape ast; S.transProg ast)
     in
-      (F.findEscape ast; PT.printtree(TextIO.stdOut, T.EXP(Translate.unEx(#exp
-      checked))))
+      (F.findEscape ast; print_treelist(Canon.linearize( T.EXP(Translate.unEx(#exp
+      checked)))))
     end
 end
