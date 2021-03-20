@@ -35,9 +35,10 @@ struct
 
   fun unNx (Nx s) = s
     | unNx (Ex e) = T.EXP(e)
-
+    | unNx (Cx genstm) = T.EXP(unEx(Cx genstm))
 
   fun unCx (Cx genstm) = genstm 
+    | unCx (Ex e) = fn(t,f) => T.CJUMP(T.EQ, e, T.CONST 0, t,f)
 
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
     | op_exp (left, right, A.MinusOp) = Ex(T.BINOP(T.MINUS, unEx left, unEx right))
@@ -63,8 +64,8 @@ struct
       val f = Temp.newlabel()
       val tl = Temp.newlabel()
     in
-      Ex(T.ESEQ(seq[cond'(t,f), T.LABEL t, T.MOVE(T.TEMP(r), e1'), T.LABEL f,
-      T.JUMP(T.NAME(tl), [tl]), T.MOVE(T.TEMP(r), e2'), T.LABEL tl], T.TEMP(r)))
+      Ex(T.ESEQ(seq[cond'(t,f), T.LABEL t, T.MOVE(T.TEMP(r), e1'), 
+      T.JUMP(T.NAME(tl), [tl]), T.LABEL f,  T.MOVE(T.TEMP(r), e2'), T.LABEL tl], T.TEMP(r)))
     end
 
   fun if_exp (cond, e1) =
