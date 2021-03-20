@@ -8,13 +8,18 @@ sig
     val allocLocal : frame -> bool -> access (* allocate a new local variable in a frame; The boolean argument to allocLocal 
                                                 specifies whether the new variable escapes and needs to go in the frame; 
                                                 if it is false, then the variable can be allocated in a register. *)
+    
+    val argregs : Temp.temp list
+    val FP : Temp.temp
+    val RA : Temp.temp
+    val wordSize : int 
     (* Uncomment as needed - for advanced functionalities *)
-    (* val FP : Temp.temp 
-    val wordSize: int 
+    (* 
     val exp : access -> Tree.exp -> Tree.exp
     val externalCall: string * Tree.exp list -> Tree.exp
     val RV : Temp. temp
     datatype frag = PROC of {body: Tree.stm, frame: frame}
-                  | STRING of Temp.label * string *)
+                  | STRING of Temp.label * string 
+                  *)
 
 end
