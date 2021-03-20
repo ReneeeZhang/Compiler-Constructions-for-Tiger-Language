@@ -7,6 +7,8 @@ struct
   type level = int (* may not be int *)
   type access = level * MipsFrame.access
 
+  val outermost = 0
+
   datatype exp = Ex of T.exp
                | Nx of T.stm
                | Cx of T.label * T.label -> T.stm
