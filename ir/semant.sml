@@ -169,6 +169,7 @@ struct
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, (*add
             label*)
             NONE, lev)
+            val for_as_while = ConvertFor.get_absyn(lo,hi,body,pos,escape)
           in
             (if Types.is_subtype_of(ty_lo, Types.INT,pos) then () else
               ErrorMsg.error pos ("Loop bound is type " ^
@@ -179,7 +180,7 @@ struct
              if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
                ErrorMsg.error pos ("Loop body is type " ^
                Types.tostring(ty_body) ^ ", type unit required");
-             {exp=Trans.Un(), ty=Types.UNIT})
+             transExp(venv,tenv,for_as_while,NONE,lev))
           end
 
       (*Break Exps*)
