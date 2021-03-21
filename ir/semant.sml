@@ -476,17 +476,34 @@ struct
             in
               a::get_types(t)
             end
+
+        val functionLabel = Temp.newlabel()
+        val escapesForFormals = map (fn param => !(#escape param)) params
+        val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
+
+        fun makeParamAccessComboList(param::params, access::accesses) =
+            (param, access)::makeParamAccessComboList(params, accesses)
+          | makeParamAccessComboList([], []) =
+            (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
+          | makeParamAccessComboList(_, _) =
+            (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
+
+
         val params' = map transparam params
+        val (currentFrame, _) = newLevel
+        val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
         val typelist = get_types(params)
-        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=E.FuncAccess,ty=ty}) (* TODO: it should be a VarAccess *)
-        val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
+        fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
+          {access=E.VarAccess(newLevel, access),ty=ty})
+        val venv' = foldl enterparam venv paramAndAccessComboList (*Pretty sure this was a typo in the book*)
         val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-        result_ty)})
-		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, lev)
-		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-        result_ty)})
+          result_ty)})
+        val {exp=bodyExp,ty=bodytype} = transExp(venv'', tenv, body, NONE, newLevel)
+        val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
+            result_ty)})
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
+        Trans.procEntryExit({level=newLevel, body=bodyExp});
         {venv=venv''',tenv=tenv}
       end
   
@@ -508,17 +525,33 @@ struct
             in
               a::get_types(t)
             end
-        val params' = map transparam params
+    
+    val functionLabel = Temp.newlabel()
+		val escapesForFormals = map (fn param => !(#escape param)) params
+		val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
+
+		fun makeParamAccessComboList(param::params, access::accesses) =
+        (param, access)::makeParamAccessComboList(params, accesses)
+      | makeParamAccessComboList([], []) =
+        (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
+      | makeParamAccessComboList(_, _) =
+        (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
+    
+    val params' = map transparam params
+    val (currentFrame, _) = newLevel
+    val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
 		val typelist = get_types(params)
-        fun enterparam({name,ty},venv) = S.enter(venv, name,
-        {access=E.FuncAccess,ty=ty})
-        val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
-		val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
-		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
-		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, lev)
+    fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
+        {access=E.VarAccess(newLevel, access),ty=ty})
+    val venv' = foldl enterparam venv paramAndAccessComboList (*Pretty sure this was a typo in the book*)
+		val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)})
+		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)})
+		val {exp=bodyExp,ty=bodytype} = transExp(venv'', tenv, body, NONE, newLevel)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
-        Types.tostring(bodytype)); {venv=venv''',tenv=tenv}
+        Types.tostring(bodytype));
+        Trans.procEntryExit({level=newLevel, body=bodyExp});
+        {venv=venv''',tenv=tenv}
       end
   
   (*funcdec with multiple functions/procedures*)

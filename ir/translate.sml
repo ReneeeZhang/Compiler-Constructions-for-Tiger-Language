@@ -18,6 +18,9 @@ struct
                | Nx of T.stm
                | Cx of T.label * T.label -> T.stm
                | Un of unit
+
+  fun newLevel ({parent: level, name: T.label, formals: bool list}) =
+      (MipsFrame.newFrame {name=name, formals=formals}, ref ())
   
   fun seq ([a,b]) = T.SEQ(a,b)
     | seq ([a]) = a
@@ -118,5 +121,8 @@ struct
 
   (* VarDec translate interface functions *)
   (* fun simple_var (ac, lev) =  *)
+
+  (* TODO *)
+  fun procEntryExit ({level: level, body: exp}) = () 
 
 end
