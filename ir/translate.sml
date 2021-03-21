@@ -50,6 +50,8 @@ struct
     | simpleVar((lev', MF.InReg(temp)), lev) = 
       Ex(T.TEMP(temp))
 
+  fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
+
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
     | op_exp (left, right, A.MinusOp) = Ex(T.BINOP(T.MINUS, unEx left, unEx right))
     | op_exp (left, right, A.TimesOp) = Ex(T.BINOP(T.MUL, unEx left, unEx right))

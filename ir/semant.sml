@@ -139,7 +139,7 @@ struct
         in
          (if Types.is_subtype_of(ty1, ty2,pos) then () else ErrorMsg.error pos
          ("Invalid assign operands : " ^ Types.tostring(ty1) ^ " and " ^
-         Types.tostring(ty2)); {exp=Trans.Un(), ty = Types.UNIT})
+         Types.tostring(ty2)); {exp=Trans.assignExp(exp2,exp1), ty = Types.UNIT})
         end
 
       (*While exps*)
