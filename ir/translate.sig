@@ -4,8 +4,8 @@ sig
   type access
   val outermost : level
   val allocLocal: level -> bool -> access
-  (* val newLevel : {parent: level, name: Temp.label, formals: bool list} -> level
-  val formals: level -> access list
+  val newLevel : {parent: level, name: Temp.label, formals: bool list} -> level
+  (*val formals: level -> access list
    *)
   datatype exp = Ex of Tree.exp
                | Nx of Tree.stm

@@ -482,8 +482,11 @@ struct
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
         val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
         result_ty)})
-		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, lev)
-		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
+		val functionLabel = Temp.newLabel()
+		val escapesForFormals = map (fn param => !(#escape param)) params
+		val newLevel = Tr.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
+		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, newLevel)
+		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist,
         result_ty)})
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
@@ -513,9 +516,12 @@ struct
         fun enterparam({name,ty},venv) = S.enter(venv, name,
         {access=E.FuncAccess,ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
-		val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
-		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
-		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, lev)
+		val venv'' = S.enter(venv', name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
+		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
+		val functionLabel = Temp.newLabel()
+		val escapesForFormals = map (fn param => !(#escape param)) params
+		val newLevel = Tr.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
+		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, newLevel)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
         Types.tostring(bodytype)); {venv=venv''',tenv=tenv}
