@@ -7,7 +7,7 @@ struct
   type ty = T.ty
   datatype accessty = VarAccess of Translate.access
                     | FuncAccess
-  type enventry = {access: accessty, ty: ty} (* Modify to Translate.access *)
+  type enventry = {access: accessty, ty: ty}
 
   val base_tenv =  S.enter(S.enter(S.empty,
                    S.symbol("int"), T.INT), 
