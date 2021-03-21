@@ -9,6 +9,7 @@ struct
   type tenv = ty Symbol.table
   type expty = {exp : Translate.exp, ty : ty}
 
+  structure T = Types
   structure A = Absyn
   structure E = Env
   structure S = Symbol
@@ -39,7 +40,8 @@ struct
     | check_eq_args(a, b,pos) = (ErrorMsg.error pos 
     ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=Trans.Un(), ty=Types.BOTTOM})
 
-  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : Temp.label option, lev) =
+  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : Temp.label option, lev:
+    Translate.level) =
     let
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
@@ -395,7 +397,8 @@ struct
      venv=venv})
   | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}, lev) = 
     let val {exp,ty} = transExp(venv, tenv, init, NONE, lev)
-    in {tenv=tenv, venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev, escape)), ty=ty})}
+    in {tenv=tenv,
+    venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev) (!escape)), ty=ty})}
     end
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}, lev) =
     let 
@@ -407,7 +410,8 @@ struct
                     | NONE => (ErrorMsg.error pos ("Undefined type");
                       Types.BOTTOM)
     in
-      {tenv=tenv, venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev, escape)), ty=type_lookup})}
+      {tenv=tenv,
+       venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev) (!escape)), ty=type_lookup})}
     end
         
   (*Type Decs*)
@@ -506,7 +510,8 @@ struct
             end
         val params' = map transparam params
 		val typelist = get_types(params)
-        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
+        fun enterparam({name,ty},venv) = S.enter(venv, name,
+        {access=E.FuncAccess,ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
 		val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
 		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
