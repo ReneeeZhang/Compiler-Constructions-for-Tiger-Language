@@ -120,4 +120,7 @@ struct
   (* VarDec translate interface functions *)
   (* fun simple_var (ac, lev) =  *)
 
+  (* TODO *)
+  fun procEntryExit ({level: level, body: exp}) = () 
+
 end
