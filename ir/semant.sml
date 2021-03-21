@@ -484,8 +484,7 @@ struct
 
         fun makeParamAccessComboList(param::params, access::accesses) =
             (param, access)::makeParamAccessComboList(params, accesses)
-          | makeParamAccessComboList([], []) =
-            (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
+          | makeParamAccessComboList([], []) = []
           | makeParamAccessComboList(_, _) =
             (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
 
@@ -533,8 +532,7 @@ struct
 
 		fun makeParamAccessComboList(param::params, access::accesses) =
         (param, access)::makeParamAccessComboList(params, accesses)
-      | makeParamAccessComboList([], []) =
-        (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
+      | makeParamAccessComboList([], []) = []
       | makeParamAccessComboList(_, _) =
         (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
     
