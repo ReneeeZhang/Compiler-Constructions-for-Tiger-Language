@@ -56,4 +56,3 @@ datatype stm = SEQ of stm * stm
 	        | ULT | ULE | UGT | UGE
 
 end
-
