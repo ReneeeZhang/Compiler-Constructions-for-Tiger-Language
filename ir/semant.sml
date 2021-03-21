@@ -9,6 +9,7 @@ struct
   type tenv = ty Symbol.table
   type expty = {exp : Translate.exp, ty : ty}
 
+  structure T = Types
   structure A = Absyn
   structure E = Env
   structure S = Symbol
@@ -40,7 +41,8 @@ struct
     | check_eq_args(a, b,pos) = (ErrorMsg.error pos 
     ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=Trans.Un(), ty=Types.BOTTOM})
 
-  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : Temp.label option, lev) =
+  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : Temp.label option, lev:
+    Translate.level) =
     let
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
@@ -338,8 +340,8 @@ struct
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
-       (case S.look(venv,id) of SOME({access=_, ty=ty}) =>
-            {exp=Trans.Un(), ty = ty}
+       (case S.look(venv,id) of SOME({access=E.VarAccess(access),ty=ty}) =>
+            {exp=Trans.simpleVar(access,lev), ty = ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
                    {exp=Trans.Un(), ty=Types.INT}))
 
@@ -396,7 +398,8 @@ struct
      venv=venv})
   | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}, lev) = 
     let val {exp,ty} = transExp(venv, tenv, init, NONE, lev)
-    in {tenv=tenv, venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal (lev) (!escape)), ty=ty})}
+    in {tenv=tenv,
+        venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal (lev) (!escape)), ty=ty})}
     end
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}, lev) =
     let 
@@ -408,7 +411,8 @@ struct
                     | NONE => (ErrorMsg.error pos ("Undefined type");
                       Types.BOTTOM)
     in
-      {tenv=tenv, venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal (lev) (!escape)), ty=type_lookup})}
+      {tenv=tenv,
+       venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal (lev) (!escape)), ty=type_lookup})}
     end
         
   (*Type Decs*)

@@ -45,6 +45,11 @@ struct
   fun unCx (Cx genstm) = genstm 
     | unCx (Ex e) = fn(t,f) => T.CJUMP(T.EQ, e, T.CONST 0, t,f)
 
+  fun simpleVar((lev', MF.InFrame(offset)), lev) = 
+      Ex(T.MEM(T.BINOP(T.PLUS, T.TEMP(MF.FP), T.CONST offset)))
+    | simpleVar((lev', MF.InReg(temp)), lev) = 
+      Ex(T.TEMP(temp))
+
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
     | op_exp (left, right, A.MinusOp) = Ex(T.BINOP(T.MINUS, unEx left, unEx right))
     | op_exp (left, right, A.TimesOp) = Ex(T.BINOP(T.MUL, unEx left, unEx right))
