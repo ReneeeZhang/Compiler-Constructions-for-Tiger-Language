@@ -14,6 +14,7 @@ struct
   structure S = Symbol
   structure H = HashTable
   structure Trans = Translate
+  structure MF = MipsFrame
   structure SymbolSet = HashSetFn (struct type hash_key = string
                                           fun hashVal s = HashString.hashString s
                                           fun sameKey(s1: hash_key, s2: hash_key) = s1 = s2
@@ -160,7 +161,7 @@ struct
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
           let 
-            val venv' = S.enter(venv, var, {access=(), ty=Types.INT})
+            val venv' = S.enter(venv, var, {access=E.FuncAccess, ty=Types.INT}) (* TODO: access should be VarAccess *)
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, (*add
@@ -336,10 +337,16 @@ struct
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
-       (case S.look(venv,id) of SOME({access=(), ty=ty}) =>
+       (case S.look(venv,id) of SOME({access=_, ty=ty}) =>
             {exp=Trans.Un(), ty = ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
                    {exp=Trans.Un(), ty=Types.INT}))
+
+            (* (case S.look(venv,id) of  *)
+            (* SOME({access=E.VarAccess(ac), ty=ty}) => {exp=Trans.simple_var(ac, lev), ty=ty}
+          | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
+                   {exp=Trans.Un(), ty=Types.INT})) *)
+          (* TODO: pattern match a function type *)
 
       (* Array vars *)
       | trvar (A.SubscriptVar(var, expression, pos)) = 
@@ -388,7 +395,7 @@ struct
      venv=venv})
   | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}, lev) = 
     let val {exp,ty} = transExp(venv, tenv, init, NONE, lev)
-    in {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
+    in {tenv=tenv, venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev, escape)), ty=ty})}
     end
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}, lev) =
     let 
@@ -400,7 +407,7 @@ struct
                     | NONE => (ErrorMsg.error pos ("Undefined type");
                       Types.BOTTOM)
     in
-      {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=type_lookup})}
+      {tenv=tenv, venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev, escape)), ty=type_lookup})}
     end
         
   (*Type Decs*)
@@ -467,12 +474,12 @@ struct
             end
         val params' = map transparam params
         val typelist = get_types(params)
-        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
+        fun enterparam({name,ty},venv) = S.enter(venv, name, {access=E.FuncAccess,ty=ty}) (* TODO: it should be a VarAccess *)
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
-        val venv'' = S.enter(venv', name, {access=(), ty=Types.ARROW(typelist,
+        val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
         result_ty)})
 		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, lev)
-		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist,
+		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
         result_ty)})
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
@@ -501,8 +508,8 @@ struct
 		val typelist = get_types(params)
         fun enterparam({name,ty},venv) = S.enter(venv, name, {access=(),ty=ty})
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
-		val venv'' = S.enter(venv', name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
-		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
+		val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
+		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)}) (* access might cause problem *)
 		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, lev)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
@@ -552,7 +559,7 @@ struct
             end
         val params' = map transparam params
 		    val typelist = get_types(params)
-      in {access=(), ty=T.ARROW(map #ty params', T.UNIT)}
+      in {access=E.FuncAccess, ty=T.ARROW(map #ty params', T.UNIT)} (* access might cause problem *)
       end
     | getFunDecHeader({name, params, body, pos,
         result=SOME(rt,pos')}, tenv) =
@@ -574,7 +581,7 @@ struct
             end
           val params' = map transparam params
           val typelist = get_types(params)
-        in {access=(), ty=T.ARROW(map #ty params', result_ty)}
+        in {access=E.FuncAccess, ty=T.ARROW(map #ty params', result_ty)} (* access might cause problem *)
         end
 
   and transTy (tenv, type_sym, unique_ref_map, tydec_group, absyn_ty) = 
