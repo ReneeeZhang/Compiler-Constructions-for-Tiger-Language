@@ -3,11 +3,16 @@ structure Translate : TRANSLATE =
 struct 
   structure T = Tree
   structure A = Absyn
+  structure MF = MipsFrame
 
-  type level = int (* may not be int *)
-  type access = level * MipsFrame.access
-
-  val outermost = 0
+  type level = MF.frame * unit ref
+  type access = level * MF.access
+  val outermost = (MF.newFrame{name=Symbol.symbol("main"), formals=[]}, ref())
+  fun allocLocal (fr, unique) esc = 
+      let val ac = MF.allocLocal fr esc
+      in
+          ((fr, unique), ac)
+      end
 
   datatype exp = Ex of T.exp
                | Nx of T.stm
@@ -103,5 +108,8 @@ struct
       Nx(seq[T.LABEL test, cond'(cont, done), T.LABEL cont, body',
       T.JUMP(T.NAME(test), [test]), T.LABEL done])
     end
+
+  (* VarDec translate interface functions *)
+  (* fun simple_var (ac, lev) =  *)
 
 end
