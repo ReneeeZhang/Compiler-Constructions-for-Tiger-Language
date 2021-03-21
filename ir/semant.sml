@@ -339,8 +339,8 @@ struct
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
-       (case S.look(venv,id) of SOME({access=_, ty=ty}) =>
-            {exp=Trans.Un(), ty = ty}
+       (case S.look(venv,id) of SOME({access=E.VarAccess(access),ty=ty}) =>
+            {exp=Trans.simpleVar(access,lev), ty = ty}
         | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
                    {exp=Trans.Un(), ty=Types.INT}))
 

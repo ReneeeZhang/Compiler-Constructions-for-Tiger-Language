@@ -15,6 +15,7 @@ sig
   val unNx : exp -> Tree.stm
   val unCx : exp -> (Temp.label * Temp.label -> Tree.stm)
   val int_exp : int -> exp 
+  val simpleVar : access * level -> exp
   val break_exp : Tree.label -> exp
   val op_exp : exp * exp * Absyn.oper -> exp
   val cond_exp : exp * exp * Absyn.oper -> exp

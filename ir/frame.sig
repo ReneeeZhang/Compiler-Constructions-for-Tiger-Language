@@ -1,7 +1,8 @@
 signature FRAME =
 sig
     type frame (* The type frame holds information about formal parameters and local variables allocated in this frame *)
-    type access (* The access type describes formals and locals that may be in the frame or in registers *)
+    datatype access = InFrame of int
+                    | InReg of Temp.temp(* The access type describes formals and locals that may be in the frame or in registers *)
     val newFrame : {name: Temp.label, formals: bool list} -> frame (* a true in the formals indicates an escaped formal parameter *)
     val name : frame -> Temp.label (* get the name of a frame *)
     val formals : frame -> access list (* denote the locations where the formal parameters will be kept at run time, as seen from inside the callee. *)
