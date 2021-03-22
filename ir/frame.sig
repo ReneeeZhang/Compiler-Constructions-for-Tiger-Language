@@ -13,10 +13,11 @@ sig
     val argregs : Temp.temp list
     val FP : Temp.temp
     val RA : Temp.temp
-    val wordSize : int 
+    val wordSize : int
+    val exp : access -> Tree.exp -> Tree.exp (* used by Translate to turn a Frame.access into the Tree expression. 
+                                            The Tree.exp argument to Frame.exp is the address of the stack frame that the access lives in *)
     (* Uncomment as needed - for advanced functionalities *)
     (* 
-    val exp : access -> Tree.exp -> Tree.exp
     val externalCall: string * Tree.exp list -> Tree.exp
     val RV : Temp. temp
 	*)

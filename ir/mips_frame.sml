@@ -24,21 +24,28 @@ fun newFrame {name=n, formals=fo} =
 		    in
 			case (al, argregs) of
                             ([], _) => []
-                          | (a::al', reg::argregs') => 
-                            (case a of
-				 InFrame(offset) => Tree.MOVE(Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(offset))), Tree.TEMP(reg))::aux(al', argregs')
-			       | InReg(tem) => Tree.MOVE(Tree.TEMP(tem), Tree.TEMP(reg))::aux(al', argregs'))
+                          | (a::al', reg::argregs') => Tree.MOVE(
+							  (exp a (Tree.TEMP(FP))),
+							  Tree.TEMP(reg)
+						      )::aux(al', argregs')
+                          (* (case a of
+			     InFrame(offset) => Tree.MOVE(Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(offset))), Tree.TEMP(reg))::aux(al', argregs')
+			     | InReg(tem) => Tree.MOVE(Tree.TEMP(tem), Tree.TEMP(reg))::aux(al', argregs')) *)
 			  | (a::al', []) => (* has more arguments than argregs can hold *)
 			    (
 			      num_extra_args := !num_extra_args + 1;
-			      case a of
+			      Tree.MOVE(
+                                  (exp a (Tree.TEMP(FP))), 
+                                  Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * !num_extra_args)))
+                              )::aux(al', [])
+			      (* case a of
                                   InFrame(offset) => Tree.MOVE(Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(offset))),
 							       (* Extra args reside in the previous frame, see page 127 *)
 							       Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * !num_extra_args))))
 						     ::aux(al', [])
                                 | InReg(tem) => Tree.MOVE(Tree.TEMP(tem),
 							  Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * !num_extra_args))))
-						::aux(al', [])
+						::aux(al', []) *)
 			    )
 		    end
             in
@@ -53,6 +60,11 @@ fun newFrame {name=n, formals=fo} =
         }
     end
 
+and exp ac fp =
+    case ac of
+	InReg(tem) => Tree.TEMP(tem)
+      | InFrame(k) => Tree.MEM(Tree.BINOP(Tree.PLUS, fp, Tree.CONST(k))) 
+	
 fun name(fr: frame) = 
     #name fr
 
@@ -63,4 +75,5 @@ fun allocLocal (fr: frame) escaped =
     if escaped
     then ((#numlocals fr) := !(#numlocals fr) + 1; InFrame(!(#numlocals fr) * (~4)))
     else InReg(Temp.newtemp())
+
 end
