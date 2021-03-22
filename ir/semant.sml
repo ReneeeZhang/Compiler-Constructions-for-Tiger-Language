@@ -1,6 +1,8 @@
 structure Semant :> 
 sig 
-  val transProg : Absyn.exp -> {exp:Translate.exp, ty:Types.ty} 
+  val transProg : Absyn.exp -> {exp:Translate.exp, ty:Types.ty}
+  (*structure F : FRAME
+  val transProg : Absyn.exp -> F.frag list*)
 end = 
 struct
 
@@ -16,6 +18,7 @@ struct
   structure T = Types
   structure H = HashTable
   structure Trans = Translate
+  structure F = MipsFrame
   structure MF = MipsFrame
   structure SymbolSet = HashSetFn (struct type hash_key = string
                                           fun hashVal s = HashString.hashString s
@@ -517,7 +520,8 @@ struct
 
         val params' = map transparam params
         val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
-        val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
+        val _::accessList = (#formals currentFrame) (* ditch the static link *)
+        val paramAndAccessComboList = makeParamAccessComboList(params', accessList)
         val typelist = get_types(params)
         fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
           {access=E.VarAccess(newLevel, access),ty=ty})
@@ -564,7 +568,8 @@ struct
     
     val params' = map transparam params
     val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
-    val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
+    val _::accessList = (#formals currentFrame) (* ditch the static link *)
+    val paramAndAccessComboList = makeParamAccessComboList(params', accessList)
 		val typelist = get_types(params)
     fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
         {access=E.VarAccess(newLevel, access),ty=ty})
@@ -743,6 +748,6 @@ struct
     end
 
   fun transProg (tree : Absyn.exp) = 
-    transExp(E.base_venv, E.base_tenv, tree, NONE, Trans.outermost)
+    (transExp(E.base_venv, E.base_tenv, tree, NONE, Trans.outermost)(*; Trans.getResult()*));
     
 end
