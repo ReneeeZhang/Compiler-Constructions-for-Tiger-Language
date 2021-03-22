@@ -59,7 +59,22 @@ struct
     | unCx (Ex e) = fn(t,f) => T.CJUMP(T.EQ, e, T.CONST 0, t,f)
 
   fun simpleVar((lev', MF.InFrame(offset)), lev) = 
-      Ex(T.MEM(T.BINOP(T.PLUS, T.TEMP(MF.FP), T.CONST offset)))
+    let
+      fun get_fp(LEVEL(parent_var, frame_var, unique_var),
+                 LEVEL(parent_exp, frame_exp, unique_exp)) = 
+          (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
+             | false => T.MEM(get_fp(LEVEL(parent_var, frame_var, unique_var),
+               parent_exp)))
+        | get_fp(ROOT(frame_var, unique_var),
+                 LEVEL(parent_exp, frame_exp, unique_exp)) = 
+          (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
+             | false => T.MEM(get_fp(ROOT(frame_var, unique_var),
+               parent_exp)))
+        | get_fp(ROOT(_,_), ROOT(_,_)) = T.TEMP(MF.FP)
+        | get_fp(LEVEL(_,_,_), ROOT(_,_)) = (ErrorMsg.error 0 ("Impossible state"); T.TEMP(MF.FP))
+    in
+      Ex(T.MEM(T.BINOP(T.PLUS, T.CONST offset, get_fp(lev', lev))))
+    end
     | simpleVar((lev', MF.InReg(temp)), lev) = 
       Ex(T.TEMP(temp))
 
