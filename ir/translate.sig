@@ -20,6 +20,7 @@ sig
   val assignExp : exp * exp -> exp 
   val array_create : exp * exp -> exp
   val record_creation : exp list -> exp
+  val field_var : exp * int -> exp
   val break_exp : Tree.label -> exp
   val op_exp : exp * exp * Absyn.oper -> exp
   val cond_exp : exp * exp * Absyn.oper -> exp

@@ -116,6 +116,13 @@ struct
           ))
       end
 
+  fun field_var(variable, idx) =
+      let val record = unEx variable
+      in
+          Ex(T.MEM(T.BINOP(T.PLUS, record, T.CONST(idx * 4))))
+      end
+
+
   fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
 
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))

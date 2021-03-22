@@ -376,19 +376,28 @@ struct
       (* Field vars *)
       | trvar (A.FieldVar(var, name, pos)) = 
         let 
-          fun findfield([]) = (ErrorMsg.error pos ("Undefined record field");
-                               Types.BOTTOM)
-            | findfield((fname,ty)::fieldlist) = if fname=name then ty else findfield(fieldlist)
-          val {exp, ty} = trvar var
+            fun findfield([]) = (ErrorMsg.error pos ("Undefined record field");
+                                Types.BOTTOM)
+              | findfield((fname,ty)::fieldlist) = if fname=name then ty else findfield(fieldlist)
+            val {exp=var_trans_node, ty=var_ty} = trvar var
         in
-          (case ty of 
-              Types.RECORD(recfun,un) =>
-                  let
-                    val fieldlist = recfun()
+          (case var_ty of 
+              Types.RECORD(recfun, un) =>
+                  let fun get_field_pos(fl, ans) =
+                          case fl of
+                              [] => ~1
+                            | (fname, _) :: fl' => if fname = name
+                                                   then ans
+                                                   else get_field_pos(fl', ans + 1)
+                      val fieldlist = recfun()
+                      val field_idx = get_field_pos(fieldlist, 0)
+                      val field_ty = findfield(fieldlist)
                   in
-                    {exp=Trans.Un(), ty=findfield(fieldlist)}
+                      if field_idx = ~1
+                      then {exp=Trans.Un(), ty=field_ty}
+                      else {exp=Trans.field_var(var_trans_node, field_idx), ty=field_ty}
                   end
-            | _ => (ErrorMsg.error pos ("Not a record type: "^S.name(name)); 
+            | _ => (ErrorMsg.error pos ("Not a record type: " ^ S.name(name)); 
                     {exp=Trans.Un(), ty=Types.BOTTOM}))         
         end
     in
