@@ -13,7 +13,7 @@ struct
     let 
       val ast = P.parse filename
     in
-      (F.findEscape ast)
+      (F.findEscape ast; PrintAbsyn.print(TextIO.stdOut, ast))
     end
   fun run filename = 
     let
@@ -33,7 +33,7 @@ struct
       val ast = P.parse filename
       val checked = (F.findEscape ast; S.transProg ast)
     in
-      (F.findEscape ast; print_treelist(Canon.linearize( T.EXP(Translate.unEx(#exp
+      (print_treelist(Canon.linearize( T.EXP(Translate.unEx(#exp
       checked)))))
     end
 end
