@@ -83,9 +83,9 @@ struct
       (*Vars*)
       and travvar (A.SimpleVar(name,pos)) = 
         (case S.look (env, name) of SOME(depth, escape) =>
-          (if depth < d then (escape := true) else (); 
-           if depth = d then (escape := false) else (); 
-           if depth > d then ErrorMsg.error pos ("Something has gone horribly wrong") 
+          (if (depth < d) then (escape := true) else (); 
+           if (depth = d) then (escape := false) else (); 
+           if (depth > d) then ErrorMsg.error pos ("Something has gone horribly wrong") 
            else ())
          | NONE => ErrorMsg.error pos ("Undefined variable, escape analysis fails"))
        | travvar (A.SubscriptVar(var,exp,pos)) = (travvar(var); travexp(exp))
