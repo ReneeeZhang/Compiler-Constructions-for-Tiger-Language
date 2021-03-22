@@ -362,7 +362,7 @@ struct
             val {exp=exp_exp, ty=exp_ty} = trexp expression
           in
             (if Types.is_subtype_of(exp_ty, Types.INT,pos) then () else ErrorMsg.error pos ("Array index must be int"); 
-             {exp=Trans.Un(), ty=ty})
+             {exp=Trans.subscriptVar(var_exp,exp_exp), ty=ty})
           end
         | {exp=_, ty=_} => (ErrorMsg.error pos ("Attempting to index non-array"); {exp=Trans.Un(), ty=Types.UNIT}))
 

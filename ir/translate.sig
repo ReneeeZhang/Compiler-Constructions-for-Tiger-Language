@@ -26,6 +26,7 @@ sig
   val if_else_exp : exp * exp * exp -> exp
   val let_exp : exp *  exp -> exp
   val declist : exp * exp -> exp
+  val subscriptVar : exp * exp -> exp
   val unit_exp : unit -> exp
   val get_donelabel : unit -> Temp.label
   val seq_exp : exp * exp -> exp

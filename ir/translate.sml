@@ -56,6 +56,24 @@ struct
   fun array_create(size,init) = Ex(MF.externalCall("tig_initArray", [unEx
     size,unEx init]))
 
+  fun subscriptVar(array, index) = 
+    let
+      val good = Temp.newlabel()
+      val maybe = Temp.newlabel()
+      val bad = Temp.newlabel()
+      val done = Temp.newlabel()
+      val size = Temp.newtemp()
+      val result = Temp.newtemp()
+    in
+      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(size), T.MEM(T.BINOP(T.MINUS, unEx array,
+      T.CONST MF.wordSize))), T.CJUMP(T.LT, unEx index, T.CONST 0, bad,
+      maybe), T.LABEL(maybe), T.CJUMP(T.GT, unEx index, T.TEMP(size),
+      bad, good), T.LABEL(bad), T.MOVE(T.TEMP(result), T.CONST
+      0), T.JUMP(T.NAME(done), [done]), T.LABEL(good), T.MOVE(T.TEMP(result),  
+       T.MEM(T.BINOP(T.PLUS, unEx array, unEx index))), T.JUMP(T.NAME(done),
+       [done]), T.LABEL(done)], T.TEMP(result)))
+    end
+
   fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
 
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
