@@ -5,13 +5,20 @@ struct
   structure A = Absyn
   structure MF = MipsFrame
 
-  type level = MF.frame * unit ref
+  datatype level = ROOT of (MF.frame * unit ref)
+    | LEVEL of (level * MF.frame * unit ref)
+  type frameExtractableLevel = (MF.frame * unit ref)
   type access = level * MF.access
-  val outermost = (MF.newFrame{name=Symbol.symbol("main"), formals=[]}, ref())
-  fun allocLocal (fr, unique) esc = 
+  val outermost = ROOT (MipsFrame.newFrame{name=Symbol.symbol("main"), formals=[]}, ref())
+  fun allocLocal (LEVEL(parentLevel, fr, unique): level) esc =
       let val ac = MF.allocLocal fr esc
       in
-          ((fr, unique), ac)
+          (LEVEL(parentLevel, fr, unique), ac)
+      end
+    | allocLocal (ROOT(fr, unique): level) esc = 
+      let val ac = MF.allocLocal fr esc
+      in
+        (ROOT(fr, unique), ac)
       end
 
   datatype exp = Ex of T.exp
@@ -20,7 +27,10 @@ struct
                | Un of unit
 
   fun newLevel ({parent: level, name: T.label, formals: bool list}) =
-      (MipsFrame.newFrame {name=name, formals=formals}, ref ())
+      LEVEL(parent, MipsFrame.newFrame {name=name, formals=formals}, ref ())
+  
+  fun getFrameExtractableLevel (LEVEL(parentLevel, fr, unique): level) = (fr, unique)
+    | getFrameExtractableLevel (ROOT(fr, unique): level) = (fr, unique)
   
   fun seq ([a,b]) = T.SEQ(a,b)
     | seq ([a]) = a
@@ -129,8 +139,8 @@ struct
     end
 
   fun initialize_dec((lev,MF.InReg(i)), init) =  Nx(T.MOVE(T.TEMP(i), unEx init))
-    | initialize_dec((lev,MF.InFrame(i)), init) = Nx(T.MOVE(T.BINOP(T.PLUS,
-      T.TEMP(MF.FP), T.CONST i),unEx init))
+    | initialize_dec((lev,MF.InFrame(i)), init) = Nx(T.MOVE(T.MEM(T.BINOP(T.PLUS,
+      T.TEMP(MF.FP), T.CONST i)),unEx init))
 
   fun if_exp (cond, e1) =
     let

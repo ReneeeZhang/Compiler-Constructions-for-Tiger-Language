@@ -11,7 +11,7 @@ val RA = Temp.newtemp()
 val argregs = [Temp.newtemp(), Temp.newtemp(), Temp.newtemp(), Temp.newtemp()] 
 
 val wordSize = 4
-
+val emptyFrame = {formals=([]: access list), view_shift=([]: Tree.stm list), numlocals=ref 0, name=Temp.newlabel()}
 fun newFrame {name=n, formals=fo} = 
     let val curr = ref 0 (* current number of locals *)
         val access_list =  map (fn (escaped) => if escaped 
