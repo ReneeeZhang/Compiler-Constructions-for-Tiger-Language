@@ -507,7 +507,7 @@ struct
 
 
         val params' = map transparam params
-        val (currentFrame, _) = newLevel
+        val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
         val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
         val typelist = get_types(params)
         fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
@@ -554,7 +554,7 @@ struct
         (ErrorMsg.error pos ("Broken beyond repair..."); []) (*This should never happen*)
     
     val params' = map transparam params
-    val (currentFrame, _) = newLevel
+    val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
     val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
 		val typelist = get_types(params)
     fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
