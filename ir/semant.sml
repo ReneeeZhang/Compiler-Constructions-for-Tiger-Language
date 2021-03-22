@@ -229,7 +229,8 @@ struct
             
              case S.look(tenv, typ) of 
                   SOME(Types.ARRAY(ele_type, u)) => if Types.is_subtype_of(ty_init, ele_type, pos)
-                                                    then {exp=Trans.Un(), ty=Types.ARRAY(ele_type, u)}
+                                                    then
+                                                      {exp=Trans.array_create(exp_size,exp_init), ty=Types.ARRAY(ele_type, u)}
                                                     else (ErrorMsg.error pos ("Array init, i.e., element type, does not have the same type as " 
                                                                               ^ S.name(typ) ^ "'s element type when creating an array.");
                                                           {exp=Trans.Un(), ty=Types.BOTTOM})  
@@ -241,8 +242,10 @@ struct
 
       (*Let Exps*)
       | trexp (A.LetExp{decs,body,pos}) = 
-        let val {venv=venv',tenv=tenv'} = transDecs(venv, tenv, decs, lev)
-        in transExp(venv',tenv',body,NONE, lev)
+        let val {venv=venv',tenv=tenv',exp=exp} = transDecs(venv, tenv, decs, lev)
+            val {exp=body_exp, ty=ty} = transExp(venv',tenv',body,NONE, lev)
+          in
+            {exp=Trans.let_exp(exp,body_exp), ty=ty}
         end
  
       (*Seq Exps*)
@@ -385,21 +388,26 @@ struct
     end
 
   (*Dec list, venv, tenv -> venv',tenv'*)
-  and transDecs (venv, tenv, [], lev) = {venv=venv, tenv=tenv}
+  and transDecs (venv, tenv, [], lev) = {venv=venv, tenv=tenv,
+  exp=Trans.unit_exp()}
     | transDecs (venv, tenv, h::t, lev) = 
-        let val {venv=venv', tenv=tenv'} = transDec(venv, tenv, h, lev)
-        in transDecs (venv', tenv', t, lev)
+        let val {venv=venv', tenv=tenv', exp=exp} = transDec(venv, tenv, h, lev)
+            val {venv=venv2, tenv=tenv2, exp=exp'} = transDecs (venv', tenv', t, lev)
+        in
+          {venv=venv2, tenv=tenv2, exp=Trans.declist(exp, exp')}
         end
 
   (*Singleton dec, venv, tenv -> venv', tenv'*)
   (*Var decs*)
   and transDec(venv,tenv,A.VarDec{escape,init=A.NilExp,name,pos,typ=NONE}, lev) = 
     (ErrorMsg.error pos ("Illegal nil use: record needed"); {tenv=tenv,
-     venv=venv})
+     venv=venv, exp=Trans.Un()})
   | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}, lev) = 
     let val {exp,ty} = transExp(venv, tenv, init, NONE, lev)
+        val ac = Trans.allocLocal(lev) (!escape)
     in {tenv=tenv,
-    venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev) (!escape)), ty=ty})}
+    venv=S.enter(venv,name,{access=E.VarAccess(ac),
+    ty=ty}),exp=Trans.initialize_dec(ac, exp)}
     end
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}, lev) =
     let 
@@ -410,9 +418,10 @@ struct
                      Types.BOTTOM)
                     | NONE => (ErrorMsg.error pos ("Undefined type");
                       Types.BOTTOM)
+      val ac = Trans.allocLocal(lev) (!escape)
     in
       {tenv=tenv,
-       venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal(lev) (!escape)), ty=type_lookup})}
+       venv=S.enter(venv,name,{access=E.VarAccess(ac), ty=type_lookup}),exp=Trans.initialize_dec(ac,exp)}
     end
         
   (*Type Decs*)
@@ -453,8 +462,8 @@ struct
                                            end
     in
         if have_redeclarations()
-        then {venv=venv, tenv=tenv}
-        else {venv=venv, tenv=add_types(tenv, tydec_group)}
+        then {venv=venv, tenv=tenv, exp=Trans.unit_exp()}
+        else {venv=venv, tenv=add_types(tenv, tydec_group), exp=Trans.unit_exp()}
     end
 
   (*Single-function funcdec with 0 or more params*)
@@ -504,7 +513,7 @@ struct
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
         Trans.procEntryExit({level=newLevel, body=bodyExp});
-        {venv=venv''',tenv=tenv}
+        {venv=venv''',tenv=tenv,exp=Trans.unit_exp()}
       end
   
   (*Single-procedure funcdec with 0 or more params*)
@@ -550,7 +559,7 @@ struct
         ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
         Types.tostring(bodytype));
         Trans.procEntryExit({level=newLevel, body=bodyExp});
-        {venv=venv''',tenv=tenv}
+        {venv=venv''',tenv=tenv,exp=Trans.unit_exp()}
       end
   
   (*funcdec with multiple functions/procedures*)
@@ -566,11 +575,13 @@ struct
 	)) [] fds
 	in () end
 	
-  and processFunDecList(venv,tenv, A.FunctionDec([]), lev) = {venv=venv,tenv=tenv}
+  and processFunDecList(venv,tenv, A.FunctionDec([]), lev) =
+    {venv=venv,tenv=tenv,exp=Trans.unit_exp()}
   | processFunDecList(venv,tenv, A.FunctionDec([fd]), lev) = transDec(venv,tenv,A.FunctionDec([fd]), lev)
   | processFunDecList(venv,tenv, A.FunctionDec(fd::otherfds), lev) =
     (transDec(venv,tenv,A.FunctionDec([fd]), lev); processFunDecList(venv,tenv,A.FunctionDec(otherfds), lev))
-  | processFunDecList(venv,tenv, _, _) = ((*Impossible state*){venv=venv,tenv=tenv})
+  | processFunDecList(venv,tenv, _, _) = ((*Impossible
+  state*){venv=venv,tenv=tenv,exp=Trans.unit_exp()})
 
   
   and collectHeadersFromFunDecList(venv, tenv, A.FunctionDec([])) = venv

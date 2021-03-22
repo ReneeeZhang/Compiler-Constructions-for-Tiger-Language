@@ -53,6 +53,9 @@ struct
     | simpleVar((lev', MF.InReg(temp)), lev) = 
       Ex(T.TEMP(temp))
 
+  fun array_create(size,init) = Ex(MF.externalCall("tig_initArray", [unEx
+    size,unEx init]))
+
   fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
 
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
@@ -83,6 +86,10 @@ struct
       T.JUMP(T.NAME(tl), [tl]), T.LABEL f,  T.MOVE(T.TEMP(r), e2'), T.LABEL tl], T.TEMP(r)))
     end
 
+  fun initialize_dec((lev,MF.InReg(i)), init) =  Nx(T.MOVE(T.TEMP(i), unEx init))
+    | initialize_dec((lev,MF.InFrame(i)), init) = Nx(T.MOVE(T.BINOP(T.PLUS,
+      T.TEMP(MF.FP), T.CONST i),unEx init))
+
   fun if_exp (cond, e1) =
     let
       val cond' = unCx cond
@@ -107,6 +114,10 @@ struct
 
   (* Get done label for while/for loops, need to pass through transExp *)
   fun get_donelabel () = Temp.newlabel()
+
+  fun declist(head, tail) = Nx(seq[unNx head, unNx tail])
+
+  fun let_exp(decs, body) = Ex(T.ESEQ(unNx decs, unEx body))
 
   fun while_exp (cond, body, done) = 
     let

@@ -15,6 +15,8 @@ val argregs= [Temp.newtemp(), Temp.newtemp(), Temp.newtemp(), Temp.newtemp()]
 
 val wordSize = 4
 
+fun externalCall (s,args) = Tree.CALL(Tree.NAME(Temp.namedlabel s),args)
+
 fun newFrame {name=n, formals=fo} = 
     let val curr = ref 0 (* current number of locals *)
         val access_list =  map (fn (escaped) => if escaped 
