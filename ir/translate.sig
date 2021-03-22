@@ -35,6 +35,8 @@ sig
   val if_exp : exp * exp -> exp
   val procEntryExit : {level: level, body: exp} -> unit
   val getFrameExtractableLevel: level -> frameExtractableLevel
+  structure Frame : FRAME
+  val getResult : unit -> Frame.frag list
 
 end
 

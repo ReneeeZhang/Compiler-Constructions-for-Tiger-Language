@@ -10,6 +10,9 @@ struct
   type frameExtractableLevel = (MF.frame * unit ref)
   type access = level * MF.access
   val outermost = ROOT (MipsFrame.newFrame{name=Symbol.symbol("main"), formals=[]}, ref())
+
+  structure Frame : FRAME = MF
+  val fragments: MF.frag list ref = ref []
   fun allocLocal (LEVEL(parentLevel, fr, unique): level) esc =
       let val ac = MF.allocLocal fr esc
       in
@@ -27,10 +30,12 @@ struct
                | Un of unit
 
   fun newLevel ({parent: level, name: T.label, formals: bool list}) =
-      LEVEL(parent, MipsFrame.newFrame {name=name, formals=formals}, ref ())
+      LEVEL(parent, MipsFrame.newFrame {name=name, formals=true::formals}, ref ()) (* static link always escapes *)
   
   fun getFrameExtractableLevel (LEVEL(parentLevel, fr, unique): level) = (fr, unique)
     | getFrameExtractableLevel (ROOT(fr, unique): level) = (fr, unique)
+  
+  fun getResult () = !fragments
   
   fun seq ([a,b]) = T.SEQ(a,b)
     | seq ([a]) = a
@@ -183,6 +188,13 @@ struct
     end
 
   (* TODO *)
-  fun procEntryExit ({level: level, body: exp}) = () 
+  fun procEntryExit ({level: level, body: exp}) =
+  ((
+    case level of
+      LEVEL(parent, frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
+    | ROOT(frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
+    );
+    ()
+  )
 
 end
