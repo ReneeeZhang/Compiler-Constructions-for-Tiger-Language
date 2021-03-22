@@ -119,9 +119,6 @@ struct
       T.JUMP(T.NAME(test), [test]), T.LABEL done])
     end
 
-  (* VarDec translate interface functions *)
-  (* fun simple_var (ac, lev) =  *)
-
   (* TODO *)
   fun procEntryExit ({level: level, body: exp}) = () 
 
