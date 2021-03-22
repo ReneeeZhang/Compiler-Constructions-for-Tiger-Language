@@ -53,6 +53,27 @@ struct
     | simpleVar((lev', MF.InReg(temp)), lev) = 
       Ex(T.TEMP(temp))
 
+  fun array_create(size,init) = Ex(MF.externalCall("tig_initArray", [unEx
+    size,unEx init]))
+
+  fun subscriptVar(array, index) = 
+    let
+      val good = Temp.newlabel()
+      val maybe = Temp.newlabel()
+      val bad = Temp.newlabel()
+      val done = Temp.newlabel()
+      val size = Temp.newtemp()
+      val result = Temp.newtemp()
+    in
+      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(size), T.MEM(T.BINOP(T.MINUS, unEx array,
+      T.CONST MF.wordSize))), T.CJUMP(T.LT, unEx index, T.CONST 0, bad,
+      maybe), T.LABEL(maybe), T.CJUMP(T.GT, unEx index, T.TEMP(size),
+      bad, good), T.LABEL(bad), T.MOVE(T.TEMP(result), T.CONST
+      0), T.JUMP(T.NAME(done), [done]), T.LABEL(good), T.MOVE(T.TEMP(result),  
+       T.MEM(T.BINOP(T.PLUS, unEx array, unEx index))), T.JUMP(T.NAME(done),
+       [done]), T.LABEL(done)], T.TEMP(result)))
+    end
+
   fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
 
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
@@ -83,6 +104,10 @@ struct
       T.JUMP(T.NAME(tl), [tl]), T.LABEL f,  T.MOVE(T.TEMP(r), e2'), T.LABEL tl], T.TEMP(r)))
     end
 
+  fun initialize_dec((lev,MF.InReg(i)), init) =  Nx(T.MOVE(T.TEMP(i), unEx init))
+    | initialize_dec((lev,MF.InFrame(i)), init) = Nx(T.MOVE(T.BINOP(T.PLUS,
+      T.TEMP(MF.FP), T.CONST i),unEx init))
+
   fun if_exp (cond, e1) =
     let
       val cond' = unCx cond
@@ -107,6 +132,10 @@ struct
 
   (* Get done label for while/for loops, need to pass through transExp *)
   fun get_donelabel () = Temp.newlabel()
+
+  fun declist(head, tail) = Nx(seq[unNx head, unNx tail])
+
+  fun let_exp(decs, body) = Ex(T.ESEQ(unNx decs, unEx body))
 
   fun while_exp (cond, body, done) = 
     let

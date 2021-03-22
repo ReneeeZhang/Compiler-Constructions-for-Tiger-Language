@@ -8,8 +8,7 @@ sig
     val formals : frame -> access list (* denote the locations where the formal parameters will be kept at run time, as seen from inside the callee. *)
     val allocLocal : frame -> bool -> access (* allocate a new local variable in a frame; The boolean argument to allocLocal 
                                                 specifies whether the new variable escapes and needs to go in the frame; 
-                                                if it is false, then the variable can be allocated in a register. *)
-    
+                                                if it is false, then the variable can be allocated in a register. *)  
     val argregs : Temp.temp list
     val FP : Temp.temp
     val RA : Temp.temp
