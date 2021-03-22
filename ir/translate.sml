@@ -105,8 +105,8 @@ struct
     end
 
   fun initialize_dec((lev,MF.InReg(i)), init) =  Nx(T.MOVE(T.TEMP(i), unEx init))
-    | initialize_dec((lev,MF.InFrame(i)), init) = Nx(T.MOVE(T.BINOP(T.PLUS,
-      T.TEMP(MF.FP), T.CONST i),unEx init))
+    | initialize_dec((lev,MF.InFrame(i)), init) = Nx(T.MOVE(T.MEM(T.BINOP(T.PLUS,
+      T.TEMP(MF.FP), T.CONST i)),unEx init))
 
   fun if_exp (cond, e1) =
     let
