@@ -8,7 +8,7 @@ datatype frag = PROC of {body: Tree.stm, frame: frame}
                   | STRING of Temp.label * string 
 val FP = Temp.newtemp()
 val RA = Temp.newtemp()
-val argregs= [Temp.newtemp(), Temp.newtemp(), Temp.newtemp(), Temp.newtemp()] 
+val argregs = [Temp.newtemp(), Temp.newtemp(), Temp.newtemp(), Temp.newtemp()] 
 
 val wordSize = 4
 
