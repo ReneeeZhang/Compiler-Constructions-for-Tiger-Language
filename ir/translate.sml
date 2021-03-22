@@ -74,6 +74,23 @@ struct
        [done]), T.LABEL(done)], T.TEMP(result)))
     end
 
+  fun record_creation(initlist) = (* initlist is a list of Trans.exp *)
+      let val initlist' = map unEx initlist
+          val r = Temp.newtemp()
+          fun st(es, idx) = 
+              case (es, idx) of
+                  ([], _) => []
+                | (e::es', i) => T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP(r), T.CONST(i))), e)::st(es', i + 4)
+      in
+          Ex(T.ESEQ(
+            seq(
+              T.MOVE(T.TEMP(r), 
+                     MF.externalCall("malloc", [T.CONST(MF.wordSize * List.length(initlist))]))::st(initlist', 0)
+            ),
+            T.TEMP(r)
+          ))
+      end
+
   fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
 
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))

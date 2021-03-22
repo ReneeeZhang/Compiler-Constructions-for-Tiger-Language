@@ -298,29 +298,35 @@ struct
           case S.look(tenv, typ) of
               SOME(Types.RECORD(thunk, u)) => 
               let val given_fields = thunk()
+                  (* Example:
+                     var lis := intlist { hd=0, tl= nil } 
+                     decl_fields is { hd=0, tl= nil }, while given_fields is what 'intlist' should have *)
                   fun compare_fields(decl_fields, given_fields) = 
                       if List.length(decl_fields) <> List.length(given_fields) (* 2 field lists with inconsistent length --> error *)
                       then (
                             ErrorMsg.error pos (S.name(typ) ^ " does not have the same number of fields as declared in record exp."); 
                             {exp=Trans.Un(), ty=Types.BOTTOM}
                             )
-                      else let fun aux(decl_fields, given_fields) = 
+                      else let fun check_consistency(decl_fields, given_fields) = 
                                   case (decl_fields, given_fields) of
-                                      ([], []) => {exp=Trans.Un(), ty=Types.RECORD(thunk, u)}
+                                      ([], []) => let val fields_trans_nodes = (* It is a list of IR exps, assumably Exes, but it could also contain Nxes and Cxes *)
+                                                          map (fn (_, rhsexp, _) => let val {exp=transnode, ty} = trexp(rhsexp)
+                                                                                        in
+                                                                                            transnode
+                                                                                        end) fields
+                                                  in
+                                                      {exp=Trans.record_creation(fields_trans_nodes), ty=Types.RECORD(thunk, u)}
+                                                  end
                                     | ((s1, e, p)::decl_fields', (s2, ty)::given_fields') => 
                                       if s1 = s2
                                       then let val {exp=_, ty=ty_field_exp} = trexp(e)
                                             in
-                                              if Types.is_subtype_of(ty,
-                                              ty_field_exp,pos)
-                                              then aux(decl_fields',
-                                              given_fields')
+                                              if Types.is_subtype_of(ty, ty_field_exp, pos)
+                                              then check_consistency(decl_fields', given_fields')
                                               else ( (* Field types are inconsistent *)
-                                                  
                                                   ErrorMsg.error p (S.name(typ) ^ "'s field " ^ S.name(s1) ^ "'s type is not consistent with the declared in the record exp."); 
                                                   {exp=Trans.Un(), ty=Types.BOTTOM}
                                               )
-                                            
                                             end
                                       else ( (* Field names are inconsistent *)
                                         ErrorMsg.error p (S.name(s1) ^ " should have the same field name as " ^ S.name(s2) ^ " in the record exp."); 
@@ -328,7 +334,7 @@ struct
                                       )
                                     | _ => {exp=Trans.Un(), ty=Types.BOTTOM} (* This won't happen because the length of 2 argv is promised to be the same *)
                             in
-                                aux(decl_fields, given_fields)
+                                check_consistency(decl_fields, given_fields)
                             end
               in
                   compare_fields(fields, given_fields)                       
@@ -371,18 +377,19 @@ struct
       | trvar (A.FieldVar(var, name, pos)) = 
         let 
           fun findfield([]) = (ErrorMsg.error pos ("Undefined record field");
-          Types.BOTTOM)
+                               Types.BOTTOM)
             | findfield((fname,ty)::fieldlist) = if fname=name then ty else findfield(fieldlist)
           val {exp, ty} = trvar var
         in
-          (case ty of Types.RECORD(recfun,un) =>
-            let
-              val fieldlist = recfun()
-            in
-              {exp=Trans.Un(), ty=findfield(fieldlist)}
-            end
-             | _ => (ErrorMsg.error pos ("Not a record type: "^S.name(name)); {exp=Trans.Un(),
-               ty=Types.BOTTOM}))         
+          (case ty of 
+              Types.RECORD(recfun,un) =>
+                  let
+                    val fieldlist = recfun()
+                  in
+                    {exp=Trans.Un(), ty=findfield(fieldlist)}
+                  end
+            | _ => (ErrorMsg.error pos ("Not a record type: "^S.name(name)); 
+                    {exp=Trans.Un(), ty=Types.BOTTOM}))         
         end
     in
       trexp(exp)
