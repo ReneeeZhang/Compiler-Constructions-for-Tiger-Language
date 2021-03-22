@@ -16,9 +16,9 @@ sig
     val wordSize : int
     val exp : access -> Tree.exp -> Tree.exp (* used by Translate to turn a Frame.access into the Tree expression. 
                                             The Tree.exp argument to Frame.exp is the address of the stack frame that the access lives in *)
+    val externalCall: string * Tree.exp list -> Tree.exp
     (* Uncomment as needed - for advanced functionalities *)
     (* 
-    val externalCall: string * Tree.exp list -> Tree.exp
     val RV : Temp. temp
 	*)
     datatype frag = PROC of {body: Tree.stm, frame: frame}

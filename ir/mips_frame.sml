@@ -76,4 +76,7 @@ fun allocLocal (fr: frame) escaped =
     then ((#numlocals fr) := !(#numlocals fr) + 1; InFrame(!(#numlocals fr) * (~4)))
     else InReg(Temp.newtemp())
 
+fun externalCall(s, args) =
+    Tree.CALL(Tree.NAME(Temp.namedlabel s), args)
+
 end
