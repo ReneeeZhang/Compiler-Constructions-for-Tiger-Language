@@ -399,7 +399,7 @@ struct
   | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}, lev) = 
     let val {exp,ty} = transExp(venv, tenv, init, NONE, lev)
     in {tenv=tenv,
-        venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal (lev) (!escape)), ty=ty})}
+        venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal lev (!escape)), ty=ty})}
     end
   | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}, lev) =
     let 
@@ -412,7 +412,7 @@ struct
                       Types.BOTTOM)
     in
       {tenv=tenv,
-       venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal (lev) (!escape)), ty=type_lookup})}
+       venv=S.enter(venv,name,{access=E.VarAccess(Trans.allocLocal lev (!escape)), ty=type_lookup})}
     end
         
   (*Type Decs*)
