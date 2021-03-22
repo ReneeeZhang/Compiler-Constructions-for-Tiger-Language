@@ -18,6 +18,9 @@ struct
                | Nx of T.stm
                | Cx of T.label * T.label -> T.stm
                | Un of unit
+
+  fun newLevel ({parent: level, name: T.label, formals: bool list}) =
+      (MipsFrame.newFrame {name=name, formals=formals}, ref ())
   
   fun seq ([a,b]) = T.SEQ(a,b)
     | seq ([a]) = a
@@ -49,6 +52,8 @@ struct
       Ex(T.MEM(T.BINOP(T.PLUS, T.TEMP(MF.FP), T.CONST offset)))
     | simpleVar((lev', MF.InReg(temp)), lev) = 
       Ex(T.TEMP(temp))
+
+  fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
 
   fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
     | op_exp (left, right, A.MinusOp) = Ex(T.BINOP(T.MINUS, unEx left, unEx right))
@@ -116,5 +121,8 @@ struct
 
   (* VarDec translate interface functions *)
   (* fun simple_var (ac, lev) =  *)
+
+  (* TODO *)
+  fun procEntryExit ({level: level, body: exp}) = () 
 
 end

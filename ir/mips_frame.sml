@@ -1,11 +1,11 @@
 structure MipsFrame : FRAME = 
 struct
-(* Define this based on page 136 *)
-(* TODO: view shift *)
+
 datatype access = InFrame of int
                 | InReg of Temp.temp
 type frame = {formals: access list, view_shift: Tree.stm list, numlocals: int ref, name: Temp.label}
-
+datatype frag = PROC of {body: Tree.stm, frame: frame}
+                  | STRING of Temp.label * string 
 val FP = Temp.newtemp()
 val RA = Temp.newtemp()
 val argregs= [Temp.newtemp(), Temp.newtemp(), Temp.newtemp(), Temp.newtemp()] 

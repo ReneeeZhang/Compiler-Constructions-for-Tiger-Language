@@ -4,8 +4,8 @@ sig
   type access
   val outermost : level
   val allocLocal: level -> bool -> access
-  (* val newLevel : {parent: level, name: Temp.label, formals: bool list} -> level
-  val formals: level -> access list
+  val newLevel : {parent: level, name: Temp.label, formals: bool list} -> level
+  (*val formals: level -> access list
    *)
   datatype exp = Ex of Tree.exp
                | Nx of Tree.stm
@@ -16,6 +16,7 @@ sig
   val unCx : exp -> (Temp.label * Temp.label -> Tree.stm)
   val int_exp : int -> exp 
   val simpleVar : access * level -> exp
+  val assignExp : exp * exp -> exp 
   val break_exp : Tree.label -> exp
   val op_exp : exp * exp * Absyn.oper -> exp
   val cond_exp : exp * exp * Absyn.oper -> exp
@@ -25,6 +26,7 @@ sig
   val get_donelabel : unit -> Temp.label
   val seq_exp : exp * exp -> exp
   val if_exp : exp * exp -> exp
+  val procEntryExit : {level: level, body: exp} -> unit
   
   (* var dec *)
   (* val simple_var : access * level -> exp *)
