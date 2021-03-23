@@ -1,8 +1,8 @@
 structure Semant :> 
 sig 
-  val transProg : Absyn.exp -> {exp:Translate.exp, ty:Types.ty}
-  (*structure F : FRAME
-  val transProg : Absyn.exp -> F.frag list*)
+
+  structure F : FRAME
+  val transProg : Absyn.exp -> MipsFrame.frag list
 end = 
 struct
 
@@ -129,7 +129,7 @@ struct
           {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.NeqOp), ty=(#ty check)}
         end 
       | trexp (A.IntExp(intval)) = {exp=Trans.int_exp(intval), ty=Types.INT}
-      | trexp (A.StringExp(stringval, pos)) = {exp=Trans.Un(), ty=Types.STRING}
+      | trexp (A.StringExp(stringval, pos)) = {exp=Trans.string_exp(stringval), ty=Types.STRING}
       | trexp (A.NilExp) = {exp=Trans.Un(), ty = Types.NIL} 
       | trexp (A.VarExp(var)) = trvar var
 
@@ -764,6 +764,9 @@ struct
     end
 
   fun transProg (tree : Absyn.exp) = 
-    (transExp(E.base_venv, E.base_tenv, tree, NONE, Trans.outermost)(*; Trans.getResult()*));
+(Trans.procEntryExit({level=Trans.outermost, body=(#exp (transExp(E.base_venv,
+ E.base_tenv, tree, NONE, Trans.outermost)))}); Trans.getResult())
+
+
     
 end
