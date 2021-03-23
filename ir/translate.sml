@@ -186,6 +186,13 @@ struct
 
   fun unit_exp() = Ex(T.CONST 0)
 
+  fun string_exp(s) = 
+    let
+      val lab = Temp.newlabel()
+    in
+      (fragments := (Frame.STRING(lab, s) :: (!fragments)); Ex(T.NAME(lab)))
+    end
+
   (* Get done label for while/for loops, need to pass through transExp *)
   fun get_donelabel () = Temp.newlabel()
 
