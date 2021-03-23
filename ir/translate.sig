@@ -41,6 +41,7 @@ sig
   val getFrameExtractableLevel: level -> frameExtractableLevel
   structure Frame : FRAME
   val getResult : unit -> Frame.frag list
+  val functionCall : (level * Temp.label * level * Tree.exp list)  -> exp
 
 end
 

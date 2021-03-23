@@ -10,7 +10,7 @@ struct
     | EXTERNAL
   type frameExtractableLevel = (MF.frame * unit ref)
   type access = level * MF.access
-  val outermost = ROOT (MipsFrame.newFrame{name=Symbol.symbol("main"), formals=[]}, ref())
+  val outermost = ROOT (MipsFrame.newFrame{name=Symbol.symbol("tig_main"), formals=[]}, ref())
   val external = EXTERNAL
 
   structure Frame : FRAME = MF
@@ -237,5 +237,17 @@ struct
     );
     ()
   )
+
+  fun getStaticLink(currentLevel, defLevelRef) =
+    case currentLevel of 
+      ROOT (_, _)  => T.TEMP(MF.FP)
+    | LEVEL(parent, _, curLevelRef) => if curLevelRef = defLevelRef then T.TEMP(MF.FP) else T.MEM(getStaticLink(parent, defLevelRef))
+    | EXTERNAL => T.TEMP(MF.FP) (*NOT POSSIBLE*)
+  
+  fun functionCall(currentLevel, label, definitionLevel, args) =
+  case definitionLevel of
+    LEVEL (parent, fr, defLevelRef) => Ex(T.CALL(T.NAME(label), getStaticLink(currentLevel, defLevelRef)::args))
+  | ROOT (fr, defLevelRef) => Ex(T.CALL(T.NAME(label), getStaticLink(currentLevel, defLevelRef)::args))
+  | EXTERNAL => Ex(T.CALL(T.NAME(label), args))
 
 end

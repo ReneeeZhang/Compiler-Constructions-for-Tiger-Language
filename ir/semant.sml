@@ -285,7 +285,7 @@ struct
                           {exp=Trans.Un(), ty=Types.BOTTOM}
                           )
 						  else (
-							  if check_args_and_params_match(args, func_param_ty_list) then {exp=Trans.Un(), ty=return_ty}
+							  if check_args_and_params_match(args, func_param_ty_list) then {exp=Trans.functionCall(lev, defLabel, defLevel, (map (fn argexp =>  Trans.unEx(#exp (trexp(argexp)))) args)), ty=return_ty}
 							  else  (ErrorMsg.error pos ("Function argument list types don't match expected parameters"); {exp=Trans.Un(), ty=Types.BOTTOM})
 						  )
 				)
