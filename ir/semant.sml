@@ -1,6 +1,8 @@
 structure Semant :> 
 sig 
-  val transProg : Absyn.exp -> {exp:Translate.exp, ty:Types.ty} 
+  val transProg : Absyn.exp -> {exp:Translate.exp, ty:Types.ty}
+  (*structure F : FRAME
+  val transProg : Absyn.exp -> F.frag list*)
 end = 
 struct
 
@@ -16,6 +18,7 @@ struct
   structure T = Types
   structure H = HashTable
   structure Trans = Translate
+  structure F = MipsFrame
   structure MF = MipsFrame
   structure SymbolSet = HashSetFn (struct type hash_key = string
                                           fun hashVal s = HashString.hashString s
@@ -276,7 +279,7 @@ struct
 	  | _ => (*Impossible state*) false
     in
 		(case S.look(venv, func) of
-			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty)}) => 
+			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty, defLevel, defLabel)}) => 
 				(if List.length func_param_ty_list <> List.length args then (
                           ErrorMsg.error pos ("Function with " ^ Int.toString(List.length func_param_ty_list) ^ " parameters called with " ^ Int.toString(List.length args) ^ " arguments"); 
                           {exp=Trans.Un(), ty=Types.BOTTOM}
@@ -504,9 +507,11 @@ struct
               a::get_types(t)
             end
 
-        val functionLabel = Temp.newlabel()
+        val newLabelIfNeeded = Temp.newlabel()
         val escapesForFormals = map (fn param => !(#escape param)) params
-        val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
+        val (newLevel, functionLabel, foundInSeq) = case S.look(venv, name) of 
+          SOME({access=_,ty=T.ARROW(_, _, lev, lab)}) => (lev,lab, true)
+        | _ => (Trans.newLevel({parent=lev, name=newLabelIfNeeded, formals=escapesForFormals}), newLabelIfNeeded, false)
 
         fun makeParamAccessComboList(param::params, access::accesses) =
             (param, access)::makeParamAccessComboList(params, accesses)
@@ -517,20 +522,21 @@ struct
 
         val params' = map transparam params
         val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
-        val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
+        val _::accessList = (#formals currentFrame) (* ditch the static link *)
+        val paramAndAccessComboList = makeParamAccessComboList(params', accessList)
         val typelist = get_types(params)
         fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
           {access=E.VarAccess(newLevel, access),ty=ty})
         val venv' = foldl enterparam venv paramAndAccessComboList (*Pretty sure this was a typo in the book*)
         val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-          result_ty)})
-        val {exp=bodyExp,ty=bodytype} = transExp(venv'', tenv, body, NONE, newLevel)
+          result_ty, newLevel, functionLabel)})
         val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-            result_ty)})
+          result_ty, newLevel, functionLabel)})
+        val {exp=bodyExp,ty=bodytype} = transExp((if foundInSeq then venv' else venv''), tenv, body, NONE, newLevel)
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
         Trans.procEntryExit({level=newLevel, body=bodyExp});
-        {venv=venv''',tenv=tenv,exp=Trans.unit_exp()}
+         {venv=(if foundInSeq then venv else venv'''),tenv=tenv,exp=Trans.unit_exp()}
       end
   
   (*Single-procedure funcdec with 0 or more params*)
@@ -552,9 +558,11 @@ struct
               a::get_types(t)
             end
     
-    val functionLabel = Temp.newlabel()
-		val escapesForFormals = map (fn param => !(#escape param)) params
-		val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
+    val newLabelIfNeeded = Temp.newlabel()
+    val escapesForFormals = map (fn param => !(#escape param)) params
+    val (newLevel, functionLabel, foundInSeq) = case S.look(venv, name) of 
+      SOME({access=_,ty=T.ARROW(_, _, lev, lab)}) => (lev,lab,true)
+    | _ => (Trans.newLevel({parent=lev, name=newLabelIfNeeded, formals=escapesForFormals}), newLabelIfNeeded, false)
 
 		fun makeParamAccessComboList(param::params, access::accesses) =
         (param, access)::makeParamAccessComboList(params, accesses)
@@ -564,26 +572,33 @@ struct
     
     val params' = map transparam params
     val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
-    val paramAndAccessComboList = makeParamAccessComboList(params', (#formals currentFrame))
+    val _::accessList = (#formals currentFrame) (* ditch the static link *)
+    val paramAndAccessComboList = makeParamAccessComboList(params', accessList)
 		val typelist = get_types(params)
     fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
         {access=E.VarAccess(newLevel, access),ty=ty})
     val venv' = foldl enterparam venv paramAndAccessComboList (*Pretty sure this was a typo in the book*)
-		val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)})
-		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist, Types.UNIT)})
-		val {exp=bodyExp,ty=bodytype} = transExp(venv'', tenv, body, NONE, newLevel)
+    val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
+      Types.UNIT, newLevel, functionLabel)})
+		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
+      Types.UNIT, newLevel, functionLabel)})
+		val {exp=bodyExp,ty=bodytype} = transExp((if foundInSeq then venv' else venv''), tenv, body, NONE, newLevel)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
         Types.tostring(bodytype));
         Trans.procEntryExit({level=newLevel, body=bodyExp});
-        {venv=venv''',tenv=tenv,exp=Trans.unit_exp()}
+         {venv=(if foundInSeq then venv else venv'''),tenv=tenv,exp=Trans.unit_exp()}
       end
   
   (*funcdec with multiple functions/procedures*)
   | transDec (venv,tenv, A.FunctionDec(otherfds), lev) =
+  let
+    val envAfterCollectingHeaders = collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(otherfds), lev)
+  in
 	(checkThatNoTwoMutuallyRecursiveFunctionsHaveTheSameName(otherfds);
-    processFunDecList(collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(otherfds)),tenv,A.FunctionDec(otherfds), lev) 
-	)
+    processFunDecList(envAfterCollectingHeaders,tenv,A.FunctionDec(otherfds), lev) 
+	); {venv=envAfterCollectingHeaders,tenv=tenv,exp=Trans.unit_exp()}
+  end
   and checkThatNoTwoMutuallyRecursiveFunctionsHaveTheSameName(fds:A.fundec list) =
 	let val _ = foldl (fn (fd: A.fundec, current_list_of_names) => (
 		if List.exists (fn x => x = #name fd) current_list_of_names
@@ -601,13 +616,13 @@ struct
   state*){venv=venv,tenv=tenv,exp=Trans.unit_exp()})
 
   
-  and collectHeadersFromFunDecList(venv, tenv, A.FunctionDec([])) = venv
-  | collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(fundeclist)) =
-    foldl (fn(fundec, venv) => S.enter(venv, #name fundec, getFunDecHeader(fundec, tenv))) venv fundeclist
-  | collectHeadersFromFunDecList(venv, tenv, _) = ((*Impossible state*)venv)
+  and collectHeadersFromFunDecList(venv, tenv, A.FunctionDec([]), lev) = venv
+  | collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(fundeclist), lev) =
+    foldl (fn(fundec, venv) => S.enter(venv, #name fundec, getFunDecHeader(fundec, tenv, lev))) venv fundeclist
+  | collectHeadersFromFunDecList(venv, tenv, _, lev) = ((*Impossible state*)venv)
   
   and getFunDecHeader({name, params, body, pos,
-        result=NONE}, tenv) =
+        result=NONE}, tenv, lev) =
       let
         fun transparam(absf:Absyn.field) = 
             case S.look(tenv, #typ absf) of
@@ -622,12 +637,15 @@ struct
             in
               a::get_types(t)
             end
+        val functionLabel = Temp.newlabel()
+        val escapesForFormals = map (fn param => !(#escape param)) params
+        val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
         val params' = map transparam params
 		    val typelist = get_types(params)
-      in {access=E.FuncAccess, ty=T.ARROW(map #ty params', T.UNIT)} (* access might cause problem *)
+      in {access=E.FuncAccess, ty=T.ARROW(map #ty params', T.UNIT, newLevel, functionLabel)} (* access might cause problem *)
       end
     | getFunDecHeader({name, params, body, pos,
-        result=SOME(rt,pos')}, tenv) =
+        result=SOME(rt,pos')}, tenv, lev) =
         let val result_ty = case S.look(tenv,rt) of
             SOME(rty) => rty
             | NONE => (ErrorMsg.error pos ("Undefined return type in function definition"); T.UNIT)
@@ -644,9 +662,12 @@ struct
               in
                 a::get_types(t)
             end
+          val functionLabel = Temp.newlabel()
+          val escapesForFormals = map (fn param => !(#escape param)) params
+          val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
           val params' = map transparam params
           val typelist = get_types(params)
-        in {access=E.FuncAccess, ty=T.ARROW(map #ty params', result_ty)} (* access might cause problem *)
+        in {access=E.FuncAccess, ty=T.ARROW(map #ty params', result_ty, newLevel, functionLabel)} (* access might cause problem *)
         end
 
   and transTy (tenv, type_sym, unique_ref_map, tydec_group, absyn_ty) = 
@@ -743,6 +764,6 @@ struct
     end
 
   fun transProg (tree : Absyn.exp) = 
-    transExp(E.base_venv, E.base_tenv, tree, NONE, Trans.outermost)
+    (transExp(E.base_venv, E.base_tenv, tree, NONE, Trans.outermost)(*; Trans.getResult()*));
     
 end

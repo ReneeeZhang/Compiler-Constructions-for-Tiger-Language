@@ -4,6 +4,7 @@ sig
   type frameExtractableLevel
   type access
   val outermost : level
+  val external: level
   val allocLocal: level -> bool -> access
   val newLevel : {parent: level, name: Temp.label, formals: bool list} -> level
   (*val formals: level -> access list*)
@@ -35,6 +36,8 @@ sig
   val if_exp : exp * exp -> exp
   val procEntryExit : {level: level, body: exp} -> unit
   val getFrameExtractableLevel: level -> frameExtractableLevel
+  structure Frame : FRAME
+  val getResult : unit -> Frame.frag list
 
 end
 
