@@ -77,13 +77,13 @@ struct
       fun get_fp(LEVEL(parent_var, frame_var, unique_var),
                  LEVEL(parent_exp, frame_exp, unique_exp)) = 
           (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
-             | false => T.MEM(get_fp(LEVEL(parent_var, frame_var, unique_var),
-               parent_exp)))
+             | false => T.MEM(T.BINOP(T.MINUS, get_fp(LEVEL(parent_var,
+               frame_var, unique_var), parent_exp), T.CONST 4)))
         | get_fp(ROOT(frame_var, unique_var),
                  LEVEL(parent_exp, frame_exp, unique_exp)) = 
           (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
-             | false => T.MEM(get_fp(ROOT(frame_var, unique_var),
-               parent_exp)))
+             | false => T.MEM(T.BINOP(T.MINUS, get_fp(ROOT(
+               frame_var, unique_var), parent_exp), T.CONST 4)))
         | get_fp(ROOT(_,_), ROOT(_,_)) = T.TEMP(MF.FP)
         | get_fp(LEVEL(_,_,_), ROOT(_,_)) = (ErrorMsg.error 0 ("Impossible state"); T.TEMP(MF.FP))
     in
