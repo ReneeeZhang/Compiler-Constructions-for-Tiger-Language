@@ -7,9 +7,14 @@ struct
 
   datatype level = ROOT of (MF.frame * unit ref)
     | LEVEL of (level * MF.frame * unit ref)
+    | EXTERNAL
   type frameExtractableLevel = (MF.frame * unit ref)
   type access = level * MF.access
-  val outermost = ROOT (MipsFrame.newFrame{name=Symbol.symbol("main"), formals=[]}, ref())
+  val outermost = ROOT (MipsFrame.newFrame{name=Symbol.symbol("tig_main"), formals=[]}, ref())
+  val external = EXTERNAL
+
+  structure Frame : FRAME = MF
+  val fragments: MF.frag list ref = ref []
   fun allocLocal (LEVEL(parentLevel, fr, unique): level) esc =
       let val ac = MF.allocLocal fr esc
       in
@@ -27,10 +32,12 @@ struct
                | Un of unit
 
   fun newLevel ({parent: level, name: T.label, formals: bool list}) =
-      LEVEL(parent, MipsFrame.newFrame {name=name, formals=formals}, ref ())
+      LEVEL(parent, MipsFrame.newFrame {name=name, formals=true::formals}, ref ()) (* static link always escapes *)
   
   fun getFrameExtractableLevel (LEVEL(parentLevel, fr, unique): level) = (fr, unique)
     | getFrameExtractableLevel (ROOT(fr, unique): level) = (fr, unique)
+  
+  fun getResult () = !fragments
   
   fun seq ([a,b]) = T.SEQ(a,b)
     | seq ([a]) = a
@@ -59,7 +66,22 @@ struct
     | unCx (Ex e) = fn(t,f) => T.CJUMP(T.EQ, e, T.CONST 0, t,f)
 
   fun simpleVar((lev', MF.InFrame(offset)), lev) = 
-      Ex(T.MEM(T.BINOP(T.PLUS, T.TEMP(MF.FP), T.CONST offset)))
+    let
+      fun get_fp(LEVEL(parent_var, frame_var, unique_var),
+                 LEVEL(parent_exp, frame_exp, unique_exp)) = 
+          (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
+             | false => T.MEM(get_fp(LEVEL(parent_var, frame_var, unique_var),
+               parent_exp)))
+        | get_fp(ROOT(frame_var, unique_var),
+                 LEVEL(parent_exp, frame_exp, unique_exp)) = 
+          (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
+             | false => T.MEM(get_fp(ROOT(frame_var, unique_var),
+               parent_exp)))
+        | get_fp(ROOT(_,_), ROOT(_,_)) = T.TEMP(MF.FP)
+        | get_fp(LEVEL(_,_,_), ROOT(_,_)) = (ErrorMsg.error 0 ("Impossible state"); T.TEMP(MF.FP))
+    in
+      Ex(T.MEM(T.BINOP(T.PLUS, T.CONST offset, get_fp(lev', lev))))
+    end
     | simpleVar((lev', MF.InReg(temp)), lev) = 
       Ex(T.TEMP(temp))
 
@@ -166,6 +188,30 @@ struct
 
   fun unit_exp() = Ex(T.CONST 0)
 
+  fun str_eq(a,b) = Ex(MF.externalCall("stringEqual", [unEx a, unEx b]))
+
+  fun str_neq(a,b) = 
+    let
+      val fnres = Temp.newtemp()
+      val result = Temp.newtemp()
+      val zero = Temp.newlabel()
+      val one = Temp.newlabel()
+      val done = Temp.newlabel()
+    in
+      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(fnres), MF.externalCall("stringEqual", [unEx a, unEx b])),
+      T.CJUMP(T.EQ, T.TEMP(fnres), T.CONST 0, zero, one), T.LABEL(zero),
+      T.MOVE(T.TEMP(result), T.CONST 1), T.JUMP(T.NAME(done), [done]),
+      T.LABEL(one), T.MOVE(T.TEMP(result), T.CONST 0), T.JUMP(T.NAME(done),
+      [done]), T.LABEL(done)], T.TEMP(result)))
+    end
+
+  fun string_exp(s) = 
+    let
+      val lab = Temp.newlabel()
+    in
+      (fragments := (Frame.STRING(lab, s) :: (!fragments)); Ex(T.NAME(lab)))
+    end
+
   (* Get done label for while/for loops, need to pass through transExp *)
   fun get_donelabel () = Temp.newlabel()
 
@@ -185,6 +231,25 @@ struct
     end
 
   (* TODO *)
-  fun procEntryExit ({level: level, body: exp}) = () 
+  fun procEntryExit ({level: level, body: exp}) =
+  ((
+    case level of
+      LEVEL(parent, frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
+    | ROOT(frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
+    );
+    ()
+  )
+
+  fun getStaticLink(currentLevel, defLevelRef) =
+    case currentLevel of 
+      ROOT (_, _)  => T.TEMP(MF.FP)
+    | LEVEL(parent, _, curLevelRef) => if curLevelRef = defLevelRef then T.TEMP(MF.FP) else T.MEM(getStaticLink(parent, defLevelRef))
+    | EXTERNAL => T.TEMP(MF.FP) (*NOT POSSIBLE*)
+  
+  fun functionCall(currentLevel, label, definitionLevel, args) =
+  case definitionLevel of
+    LEVEL (parent, fr, defLevelRef) => Ex(T.CALL(T.NAME(label), getStaticLink(currentLevel, defLevelRef)::args))
+  | ROOT (fr, defLevelRef) => Ex(T.CALL(T.NAME(label), getStaticLink(currentLevel, defLevelRef)::args))
+  | EXTERNAL => Ex(T.CALL(T.NAME(label), args))
 
 end

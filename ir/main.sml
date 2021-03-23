@@ -9,6 +9,16 @@ struct
   fun print_treelist ([]) = ()
     | print_treelist (h::t) = (PT.printtree(TextIO.stdOut, h); print_treelist t)
 
+  fun frags ([]) = print("End \n")
+    | frags (MipsFrame.PROC{body=body, frame=frame}::t) =
+      let
+        val name = #name frame
+      in
+        (print(Symbol.name(name) ^ " : \n"); print_treelist(Canon.linearize(body)); frags(t))
+      end
+    | frags (MipsFrame.STRING(l, s)::t) = (print(Symbol.name(l) ^ " : " ^ s ^ 
+    " \n"); frags(t))
+(*
   fun esc filename = 
     let 
       val ast = P.parse filename
@@ -28,12 +38,12 @@ struct
     in
       PT.printtree(TextIO.stdOut, T.EXP(Translate.unEx(#exp checked)))
     end
+ *)
   fun lin filename = 
     let
       val ast = P.parse filename
-      val checked = (F.findEscape ast; S.transProg ast)
+      val f = (F.findEscape ast; S.transProg ast)
     in
-      (print_treelist(Canon.linearize( T.EXP(Translate.unEx(#exp
-      checked)))))
+      frags(f)
     end
 end

@@ -2,6 +2,8 @@ structure Types =
 struct
 
   type unique = unit ref
+  structure Trans = Translate
+  structure Temp = Temp
 
   datatype ty = 
             RECORD of (unit -> (Symbol.symbol * ty) list) * unique
@@ -9,7 +11,7 @@ struct
           | INT
           | STRING
           | ARRAY of ty * unique
-          | ARROW of ty list * ty (* function type: arguments * return *) (* TODO: modify later *)
+          | ARROW of ty list * ty * Trans.level * Temp.label (* function type: arguments * return *) (* TODO: modify later *)
 	        | UNIT
           | BOTTOM
 
