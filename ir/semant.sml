@@ -15,7 +15,6 @@ struct
   structure A = Absyn
   structure E = Env
   structure S = Symbol
-  structure T = Types
   structure H = HashTable
   structure Trans = Translate
   structure F = MipsFrame
@@ -129,12 +128,11 @@ struct
           {exp=if (#str check) then Trans.str_neq(#exp lexpty, #exp rexpty) else Trans.cond_exp(#exp lexpty, #exp rexpty, A.NeqOp), ty=(#ty check)}
         end 
       | trexp (A.IntExp(intval)) = {exp=Trans.int_exp(intval), ty=Types.INT}
+      | trexp (A.NilExp) = {exp=Trans.transnil(), ty = Types.NIL} 
       | trexp (A.StringExp(stringval, pos)) = {exp=Trans.string_exp(stringval), ty=Types.STRING}
-      | trexp (A.NilExp) = {exp=Trans.Un(), ty = Types.NIL} 
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
-      (*TODO: still missing Call Record exps, breaks within functions*)
       (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
@@ -167,7 +165,7 @@ struct
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
           let 
-            val venv' = S.enter(venv, var, {access=E.FuncAccess, ty=Types.INT}) (* TODO: access should be VarAccess *)
+            val venv' = S.enter(venv, var, {access=E.VarAccess(lev, MF.InReg(Temp.newtemp())), ty=Types.INT})
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, (*add
@@ -279,7 +277,7 @@ struct
 	  | _ => (*Impossible state*) false
     in
 		(case S.look(venv, func) of
-			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty, defLevel, defLabel)}) => 
+			SOME({access=_,ty=T.ARROW(func_param_ty_list, return_ty, defLevel, defLabel, _)}) => 
 				(if List.length func_param_ty_list <> List.length args then (
                           ErrorMsg.error pos ("Function with " ^ Int.toString(List.length func_param_ty_list) ^ " parameters called with " ^ Int.toString(List.length args) ^ " arguments"); 
                           {exp=Trans.Un(), ty=Types.BOTTOM}
@@ -353,10 +351,12 @@ struct
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
-       (case S.look(venv,id) of SOME({access=E.VarAccess(access),ty=ty}) =>
-            {exp=Trans.simpleVar(access,lev), ty = ty}
-        | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
-                   {exp=Trans.Un(), ty=Types.INT}))
+        (case S.look(venv,id) of 
+            SOME({access=E.VarAccess(ac),ty=ty}) => {exp=Trans.simpleVar(ac,lev), ty = ty}
+          | SOME({access=E.FuncAccess, ty=_}) => (ErrorMsg.error pos (Symbol.name(id) ^ " should never be a function");
+                                                  {exp=Trans.Un(), ty=Types.BOTTOM})
+          | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
+                     {exp=Trans.Un(), ty=Types.INT}))
 
             (* (case S.look(venv,id) of  *)
             (* SOME({access=E.VarAccess(ac), ty=ty}) => {exp=Trans.simple_var(ac, lev), ty=ty}
@@ -510,7 +510,8 @@ struct
         val newLabelIfNeeded = Temp.newlabel()
         val escapesForFormals = map (fn param => !(#escape param)) params
         val (newLevel, functionLabel, foundInSeq) = case S.look(venv, name) of 
-          SOME({access=_,ty=T.ARROW(_, _, lev, lab)}) => (lev,lab, true)
+          SOME({access=_,ty=T.ARROW(_, _, lev, lab, foundPos)}) => 
+		  	if foundPos = pos then (lev,lab, true) else (Trans.newLevel({parent=lev, name=newLabelIfNeeded, formals=escapesForFormals}), newLabelIfNeeded, false)
         | _ => (Trans.newLevel({parent=lev, name=newLabelIfNeeded, formals=escapesForFormals}), newLabelIfNeeded, false)
 
         fun makeParamAccessComboList(param::params, access::accesses) =
@@ -529,9 +530,9 @@ struct
           {access=E.VarAccess(newLevel, access),ty=ty})
         val venv' = foldl enterparam venv paramAndAccessComboList (*Pretty sure this was a typo in the book*)
         val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-          result_ty, newLevel, functionLabel)})
+          result_ty, newLevel, functionLabel, pos)})
         val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-          result_ty, newLevel, functionLabel)})
+          result_ty, newLevel, functionLabel, pos)})
         val {exp=bodyExp,ty=bodytype} = transExp((if foundInSeq then venv' else venv''), tenv, body, NONE, newLevel)
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
         ErrorMsg.error pos ("Function body type does not match specified return type");
@@ -561,7 +562,8 @@ struct
     val newLabelIfNeeded = Temp.newlabel()
     val escapesForFormals = map (fn param => !(#escape param)) params
     val (newLevel, functionLabel, foundInSeq) = case S.look(venv, name) of 
-      SOME({access=_,ty=T.ARROW(_, _, lev, lab)}) => (lev,lab,true)
+      SOME({access=_,ty=T.ARROW(_, _, lev, lab, foundPos)}) =>
+	  if foundPos = pos then (lev,lab,true) else (Trans.newLevel({parent=lev, name=newLabelIfNeeded, formals=escapesForFormals}), newLabelIfNeeded, false)
     | _ => (Trans.newLevel({parent=lev, name=newLabelIfNeeded, formals=escapesForFormals}), newLabelIfNeeded, false)
 
 		fun makeParamAccessComboList(param::params, access::accesses) =
@@ -579,9 +581,9 @@ struct
         {access=E.VarAccess(newLevel, access),ty=ty})
     val venv' = foldl enterparam venv paramAndAccessComboList (*Pretty sure this was a typo in the book*)
     val venv'' = S.enter(venv', name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-      Types.UNIT, newLevel, functionLabel)})
+      Types.UNIT, newLevel, functionLabel, pos)})
 		val venv''' = S.enter(venv, name, {access=E.FuncAccess, ty=Types.ARROW(typelist,
-      Types.UNIT, newLevel, functionLabel)})
+      Types.UNIT, newLevel, functionLabel, pos)})
 		val {exp=bodyExp,ty=bodytype} = transExp((if foundInSeq then venv' else venv''), tenv, body, NONE, newLevel)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
@@ -642,7 +644,7 @@ struct
         val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
         val params' = map transparam params
 		    val typelist = get_types(params)
-      in {access=E.FuncAccess, ty=T.ARROW(map #ty params', T.UNIT, newLevel, functionLabel)} (* access might cause problem *)
+      in {access=E.FuncAccess, ty=T.ARROW(map #ty params', T.UNIT, newLevel, functionLabel, pos)} (* access might cause problem *)
       end
     | getFunDecHeader({name, params, body, pos,
         result=SOME(rt,pos')}, tenv, lev) =
@@ -667,7 +669,7 @@ struct
           val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
           val params' = map transparam params
           val typelist = get_types(params)
-        in {access=E.FuncAccess, ty=T.ARROW(map #ty params', result_ty, newLevel, functionLabel)} (* access might cause problem *)
+        in {access=E.FuncAccess, ty=T.ARROW(map #ty params', result_ty, newLevel, functionLabel, pos)} (* access might cause problem *)
         end
 
   and transTy (tenv, type_sym, unique_ref_map, tydec_group, absyn_ty) = 

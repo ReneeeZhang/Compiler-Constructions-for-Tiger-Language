@@ -65,15 +65,15 @@ and exp ac fp =
 	InReg(tem) => Tree.TEMP(tem)
       | InFrame(k) => Tree.MEM(Tree.BINOP(Tree.PLUS, fp, Tree.CONST(k))) 
 	
-fun name(fr: frame) = 
-    #name fr
+fun name {formals, view_shift, numlocals, name} = 
+    name
 
-fun formals(fr: frame) = 
-    #formals fr
+fun formals {formals, view_shift, numlocals, name} = 
+    formals
 	     
-fun allocLocal (fr: frame) escaped = 
+fun allocLocal {formals, view_shift, numlocals, name} escaped = 
     if escaped
-    then ((#numlocals fr) := !(#numlocals fr) + 1; InFrame(!(#numlocals fr) * (~4)))
+    then (numlocals := !numlocals + 1; InFrame(!numlocals * (~4)))
     else InReg(Temp.newtemp())
 
 fun externalCall(s, args) =
