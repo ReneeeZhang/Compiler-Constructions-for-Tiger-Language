@@ -212,11 +212,24 @@ struct
       [done]), T.LABEL(done)], T.TEMP(result)))
     end
 
+  (* Returns a label option for a string *)
+  fun findStringInFragmentList(s, Frame.PROC{body=_, frame=_}::fraglist) = findStringInFragmentList(s, fraglist)
+    | findStringInFragmentList(s, Frame.STRING(lab, foundString)::fraglist) = (if s = foundString then SOME(lab) else findStringInFragmentList(s, fraglist))
+    | findStringInFragmentList(s, []) = NONE
+
+  (* Makes a new string frag and returns its label *)
+  fun makeNewStringFrag(s) =
+    let val lab = Temp.newlabel()
+    in (fragments := (Frame.STRING(lab, s) :: (!fragments)); lab)
+    end
+
   fun string_exp(s) = 
     let
-      val lab = Temp.newlabel()
+      val lab = case findStringInFragmentList(s, !fragments) of
+         SOME(l) => l
+        | NONE => makeNewStringFrag(s)
     in
-      (fragments := (Frame.STRING(lab, s) :: (!fragments)); Ex(T.NAME(lab)))
+      Ex(T.NAME(lab))
     end
 
   (* Get done label for while/for loops, need to pass through transExp *)
