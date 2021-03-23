@@ -182,7 +182,7 @@ struct
              if Types.is_subtype_of(ty_body, Types.UNIT,pos) then () else
                ErrorMsg.error pos ("Loop body is type " ^
                Types.tostring(ty_body) ^ ", type unit required");
-             transExp(venv,tenv,for_as_while,NONE,lev))
+             transExp(venv',tenv,for_as_while,NONE,lev))
           end
 
       (*Break Exps*)
