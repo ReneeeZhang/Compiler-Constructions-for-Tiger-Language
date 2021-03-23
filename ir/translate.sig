@@ -4,6 +4,7 @@ sig
   type frameExtractableLevel
   type access
   val outermost : level
+  val external: level
   val allocLocal: level -> bool -> access
   val newLevel : {parent: level, name: Temp.label, formals: bool list} -> level
   (*val formals: level -> access list*)

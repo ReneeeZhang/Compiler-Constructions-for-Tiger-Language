@@ -7,9 +7,11 @@ struct
 
   datatype level = ROOT of (MF.frame * unit ref)
     | LEVEL of (level * MF.frame * unit ref)
+    | EXTERNAL
   type frameExtractableLevel = (MF.frame * unit ref)
   type access = level * MF.access
   val outermost = ROOT (MipsFrame.newFrame{name=Symbol.symbol("main"), formals=[]}, ref())
+  val external = EXTERNAL
 
   structure Frame : FRAME = MF
   val fragments: MF.frag list ref = ref []
