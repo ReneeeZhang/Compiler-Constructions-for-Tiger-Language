@@ -33,6 +33,7 @@ sig
   val get_donelabel : unit -> Temp.label
   val seq_exp : exp * exp -> exp
   val if_exp : exp * exp -> exp
+  val transnil: unit -> exp
   val procEntryExit : {level: level, body: exp} -> unit
   val getFrameExtractableLevel: level -> frameExtractableLevel
 

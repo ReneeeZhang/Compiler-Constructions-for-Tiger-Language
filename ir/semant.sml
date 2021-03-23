@@ -127,7 +127,7 @@ struct
         end 
       | trexp (A.IntExp(intval)) = {exp=Trans.int_exp(intval), ty=Types.INT}
       | trexp (A.StringExp(stringval, pos)) = {exp=Trans.Un(), ty=Types.STRING}
-      | trexp (A.NilExp) = {exp=Trans.Un(), ty = Types.NIL} 
+      | trexp (A.NilExp) = {exp=Trans.transnil(), ty = Types.NIL} 
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)

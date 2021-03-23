@@ -154,6 +154,8 @@ struct
 
   fun break_exp (lab) = Nx(T.JUMP(T.NAME(lab), [lab]))
 
+  fun transnil () = Ex(T.CONST 0)
+
   fun seq_exp(head, tail) = 
     let 
       val head' = unEx head
