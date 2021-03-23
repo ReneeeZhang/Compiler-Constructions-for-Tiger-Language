@@ -57,13 +57,20 @@ struct
                T.TEMP r)
       end
     | unEx (Nx s) = T.ESEQ(s,T.CONST 0)
+    | unEx (Un ()) = (ErrorMsg.error 0 ("Cannot translate bad type"); (T.CONST 0))
 
   fun unNx (Nx s) = s
     | unNx (Ex e) = T.EXP(e)
     | unNx (Cx genstm) = T.EXP(unEx(Cx genstm))
+    | unNx (Un ()) = (ErrorMsg.error 0 ("Cannot translate bad type");
+      (T.EXP(T.CONST 0)))
 
   fun unCx (Cx genstm) = genstm 
-    | unCx (Ex e) = fn(t,f) => T.CJUMP(T.EQ, e, T.CONST 0, t,f)
+    | unCx (Ex e) = (fn(t,f) => T.CJUMP(T.EQ, e, T.CONST 0, t,f))
+    | unCx (Nx n) = (ErrorMsg.error 0 ("Should never be called"); fn(t,f) =>
+        T.CJUMP(T.EQ, T.CONST 0, T.CONST 0, t,f))
+    | unCx (Un ()) = (ErrorMsg.error 0 ("Cannot translate bad type"); fn(t,f) =>
+        T.CJUMP(T.EQ, T.CONST 0, T.CONST 0, t,f))
 
   fun simpleVar((lev', MF.InFrame(offset)), lev) = 
     let
