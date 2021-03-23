@@ -165,7 +165,7 @@ struct
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
           let 
-            val venv' = S.enter(venv, var, {access=E.VarAccess(lev, MF.InReg(Temp.newtemp())), ty=Types.INT}) (* TODO: access should be VarAccess *)
+            val venv' = S.enter(venv, var, {access=E.VarAccess(lev, MF.InReg(Temp.newtemp())), ty=Types.INT})
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, (*add
