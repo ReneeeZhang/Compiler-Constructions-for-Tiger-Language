@@ -1,2 +1,2 @@
 CM.make("sources.cm");
-Main.print("test.tig");
+Main.lin("test.tig");
