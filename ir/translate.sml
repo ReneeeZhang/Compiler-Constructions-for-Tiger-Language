@@ -139,10 +139,112 @@ struct
 
   fun assignExp(variable, value) = Nx(T.MOVE(unEx variable, unEx value))
 
-  fun op_exp (left, right, A.PlusOp) = Ex(T.BINOP(T.PLUS, unEx left, unEx right))
-    | op_exp (left, right, A.MinusOp) = Ex(T.BINOP(T.MINUS, unEx left, unEx right))
-    | op_exp (left, right, A.TimesOp) = Ex(T.BINOP(T.MUL, unEx left, unEx right))
-    | op_exp (left, right, A.DivideOp) = Ex(T.BINOP(T.DIV, unEx left, unEx right))
+  fun op_exp (left, right, A.PlusOp) = 
+  		(case unEx(left) of T.CONST(left_const) => (
+          case unEx(right) of T.CONST(right_const) => Ex(T.CONST(left_const + right_const))
+          | _ => Ex(T.BINOP(T.PLUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.MINUS, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.MINUS, T.CONST(left_child_const + right_const), right_child)) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.PLUS, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.PLUS, T.CONST(left_child_const + right_const), right_child)) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.MINUS, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.PLUS, left_child, T.CONST(right_const - right_child_const))) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.PLUS, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.PLUS, left_child, T.CONST(right_child_const + right_const))) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | _ => Ex(T.BINOP(T.PLUS, unEx left, unEx right))) 
+    | op_exp (left, right, A.MinusOp) = 
+      (case unEx(left) of T.CONST(left_const) => (
+          case unEx(right) of T.CONST(right_const) => Ex(T.CONST(left_const - right_const))
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.MINUS, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.MINUS, T.CONST(left_child_const - right_const), right_child)) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.PLUS, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.PLUS, T.CONST(left_child_const - right_const), right_child)) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.MINUS, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.MINUS, left_child, T.CONST(right_child_const - right_const))) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | T.BINOP(T.PLUS, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.PLUS, left_child, T.CONST(right_child_const - right_const))) 
+          | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))
+      )
+      | _ => Ex(T.BINOP(T.MINUS, unEx left, unEx right))) 
+    | op_exp (left, right, A.TimesOp) =
+      (case unEx(left) of T.CONST(left_const) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.CONST(left_const * right_const))
+          | _ => Ex(T.BINOP(T.MUL, unEx left, unEx right))
+      )
+      | T.BINOP(T.MUL, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.MUL, T.CONST(left_child_const * right_const), right_child)) 
+          | _ => Ex(T.BINOP(T.MUL, unEx left, unEx right))
+      )
+      | T.BINOP(T.DIV, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.DIV, T.CONST(left_child_const * right_const), right_child)) 
+          | _ => Ex(T.BINOP(T.MUL, unEx left, unEx right))
+      )
+      | T.BINOP(T.MUL, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.MUL, left_child, T.CONST(right_child_const * right_const))) 
+          | _ => Ex(T.BINOP(T.MUL, unEx left, unEx right))
+      )
+      | T.BINOP(T.DIV, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => (
+          if right_const mod right_child_const = 0 then
+          Ex(T.BINOP(T.MUL, left_child, T.CONST(right_const div right_child_const))) 
+          else Ex(T.BINOP(T.MUL, unEx left, unEx right))
+        )
+          | _ => Ex(T.BINOP(T.MUL, unEx left, unEx right))
+      )
+      | _ => Ex(T.BINOP(T.MUL, unEx left, unEx right))) 
+    | op_exp (left, right, A.DivideOp) =
+      (case unEx(left) of T.CONST(left_const) => (
+          case unEx(right) of T.CONST(right_const) => Ex(T.CONST(left_const div right_const))
+          | _ => Ex(T.BINOP(T.DIV, unEx left, unEx right))
+      )
+
+      | T.BINOP(T.DIV, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => (
+            if left_child_const mod right_const = 0 then
+            Ex(T.BINOP(T.DIV, T.CONST(left_child_const div right_const), right_child)) 
+            else Ex(T.BINOP(T.DIV, unEx left, unEx right))  
+          )
+          | _ => Ex(T.BINOP(T.DIV, unEx left, unEx right))  
+      )
+      | T.BINOP(T.MUL, T.CONST(left_child_const), right_child) => (
+        case unEx(right) of T.CONST(right_const) => (
+            if left_child_const mod right_const = 0 then
+            Ex(T.BINOP(T.MUL, T.CONST(left_child_const div right_const), right_child)) 
+            else Ex(T.BINOP(T.DIV, unEx left, unEx right)) 
+          )
+          | _ => Ex(T.BINOP(T.DIV, unEx left, unEx right)) 
+      )
+      | T.BINOP(T.MUL, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => (
+            if right_child_const mod right_const = 0 then
+            Ex(T.BINOP(T.MUL, left_child, T.CONST(right_child_const div right_const))) 
+            else Ex(T.BINOP(T.DIV, unEx left, unEx right))
+          )
+          | _ => Ex(T.BINOP(T.DIV, unEx left, unEx right))  
+      )
+      | T.BINOP(T.DIV, left_child, T.CONST(right_child_const)) => (
+        case unEx(right) of T.CONST(right_const) => Ex(T.BINOP(T.DIV, left_child, T.CONST(right_const * right_child_const))) 
+          | _ => Ex(T.BINOP(T.DIV, unEx left, unEx right))  
+      )
+
+      | _ => Ex(T.BINOP(T.DIV, unEx left, unEx right)))  
 
   fun int_exp (v) = Ex(T.CONST(v))
 
