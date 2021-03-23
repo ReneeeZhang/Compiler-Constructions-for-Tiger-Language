@@ -186,6 +186,23 @@ struct
 
   fun unit_exp() = Ex(T.CONST 0)
 
+  fun str_eq(a,b) = Ex(MF.externalCall("stringEqual", [unEx a, unEx b]))
+
+  fun str_neq(a,b) = 
+    let
+      val fnres = Temp.newtemp()
+      val result = Temp.newtemp()
+      val zero = Temp.newlabel()
+      val one = Temp.newlabel()
+      val done = Temp.newlabel()
+    in
+      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(fnres), MF.externalCall("stringEqual", [unEx a, unEx b])),
+      T.CJUMP(T.EQ, T.TEMP(fnres), T.CONST 0, zero, one), T.LABEL(zero),
+      T.MOVE(T.TEMP(result), T.CONST 1), T.JUMP(T.NAME(done), [done]),
+      T.LABEL(one), T.MOVE(T.TEMP(result), T.CONST 0), T.JUMP(T.NAME(done),
+      [done]), T.LABEL(done)], T.TEMP(result)))
+    end
+
   fun string_exp(s) = 
     let
       val lab = Temp.newlabel()

@@ -31,6 +31,8 @@ sig
   val declist : exp * exp -> exp
   val subscriptVar : exp * exp -> exp
   val string_exp : string -> exp
+  val str_eq : exp * exp -> exp
+  val str_neq : exp * exp -> exp
   val unit_exp : unit -> exp
   val get_donelabel : unit -> Temp.label
   val seq_exp : exp * exp -> exp

@@ -30,19 +30,19 @@ struct
     (case ty of Types.INT => ()
        | _ => ErrorMsg.error pos ("Invalid arithmetic operand : "^T.tostring(ty)))  
 
-  fun check_eq_args({exp=_, ty=Types.INT}, {exp=_, ty=Types.INT},pos) = {exp=Trans.Un(), ty=Types.INT}
+  fun check_eq_args({exp=_, ty=Types.INT}, {exp=_, ty=Types.INT},pos) = {str=false, ty=Types.INT}
     | check_eq_args({exp=_, ty=Types.STRING}, {exp=_, ty=Types.STRING},pos) =
-    {exp=Trans.Un(), ty=Types.INT}
+    {str=true, ty=Types.INT}
     | check_eq_args({exp=_, ty=Types.RECORD(_)}, {exp=_, ty=Types.NIL},pos) =
-    {exp=Trans.Un(), ty=Types.INT}
+    {str=false, ty=Types.INT}
     | check_eq_args({exp=_, ty=Types.NIL}, {exp=_, ty=Types.RECORD(_)},pos) =
-    {exp=Trans.Un(), ty=Types.INT}
+    {str=false, ty=Types.INT}
     | check_eq_args({exp=_, ty=Types.RECORD(_)}, {exp=_, ty=Types.RECORD(_)},pos) =
-    {exp=Trans.Un(), ty=Types.INT}
+    {str=false, ty=Types.INT}
     | check_eq_args({exp=_, ty=Types.ARRAY(_)}, {exp=_, ty=Types.ARRAY(_)},pos) = 
-    {exp=Trans.Un(), ty=Types.INT}
+    {str=false, ty=Types.INT}
     | check_eq_args(a, b,pos) = (ErrorMsg.error pos 
-    ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=Trans.Un(), ty=Types.BOTTOM})
+    ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {str=false, ty=Types.BOTTOM})
 
   fun transExp (venv, tenv, exp : Absyn.exp, isLoop : Temp.label option, lev:
     Translate.level) =
@@ -118,7 +118,7 @@ struct
           val rexpty = trexp right
           val check = check_eq_args(lexpty, rexpty, pos)
         in
-          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.EqOp), ty=(#ty check)}
+          {exp=if (#str check) then Trans.str_eq(#exp lexpty, #exp rexpty) else Trans.cond_exp(#exp lexpty, #exp rexpty, A.EqOp), ty=(#ty check)}
         end 
       | trexp (A.OpExp{left,oper=A.NeqOp,right,pos}) = 
         let 
@@ -126,7 +126,7 @@ struct
           val rexpty = trexp right
           val check = check_eq_args(lexpty, rexpty, pos)
         in
-          {exp=Trans.cond_exp(#exp lexpty, #exp rexpty, A.NeqOp), ty=(#ty check)}
+          {exp=if (#str check) then Trans.str_neq(#exp lexpty, #exp rexpty) else Trans.cond_exp(#exp lexpty, #exp rexpty, A.NeqOp), ty=(#ty check)}
         end 
       | trexp (A.IntExp(intval)) = {exp=Trans.int_exp(intval), ty=Types.INT}
       | trexp (A.StringExp(stringval, pos)) = {exp=Trans.string_exp(stringval), ty=Types.STRING}
