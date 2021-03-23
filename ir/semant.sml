@@ -15,7 +15,6 @@ struct
   structure A = Absyn
   structure E = Env
   structure S = Symbol
-  structure T = Types
   structure H = HashTable
   structure Trans = Translate
   structure F = MipsFrame
@@ -134,7 +133,6 @@ struct
       | trexp (A.VarExp(var)) = trvar var
 
       (*Nontrivial stuff*)
-      (*TODO: still missing Call Record exps, breaks within functions*)
       (*Assign exps*)
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
@@ -167,7 +165,7 @@ struct
       (*For exps*)
         | trexp (A.ForExp{var, escape, lo, hi, body, pos}) = 
           let 
-            val venv' = S.enter(venv, var, {access=E.FuncAccess, ty=Types.INT}) (* TODO: access should be VarAccess *)
+            val venv' = S.enter(venv, var, {access=E.VarAccess(lev, MF.InReg(Temp.newtemp())), ty=Types.INT}) (* TODO: access should be VarAccess *)
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
             val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, (*add
@@ -353,10 +351,12 @@ struct
 
       (*Simple vars*)
       and trvar (A.SimpleVar(id, pos)) = 
-       (case S.look(venv,id) of SOME({access=E.VarAccess(access),ty=ty}) =>
-            {exp=Trans.simpleVar(access,lev), ty = ty}
-        | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
-                   {exp=Trans.Un(), ty=Types.INT}))
+        (case S.look(venv,id) of 
+            SOME({access=E.VarAccess(ac),ty=ty}) => {exp=Trans.simpleVar(ac,lev), ty = ty}
+          | SOME({access=E.FuncAccess, ty=_}) => (ErrorMsg.error pos (Symbol.name(id) ^ " should never be a function");
+                                                  {exp=Trans.Un(), ty=Types.BOTTOM})
+          | NONE => (ErrorMsg.error pos ("Undefined Variable: " ^ Symbol.name(id));
+                     {exp=Trans.Un(), ty=Types.INT}))
 
             (* (case S.look(venv,id) of  *)
             (* SOME({access=E.VarAccess(ac), ty=ty}) => {exp=Trans.simple_var(ac, lev), ty=ty}
