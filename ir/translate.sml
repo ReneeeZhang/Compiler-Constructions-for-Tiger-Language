@@ -235,6 +235,22 @@ struct
   (* Get done label for while/for loops, need to pass through transExp *)
   fun get_donelabel () = Temp.newlabel()
 
+  fun for_exp((lev, ac),lo,hi,body,done) = 
+    let
+      val index = unEx(simpleVar((lev, ac),lev))
+      val inc = Temp.newlabel()
+      val b = Temp.newlabel()
+      val limit = unEx hi
+      val lo' = unEx lo
+      val body' = unNx body
+    in
+      Nx(seq[T.MOVE(index, lo'), T.CJUMP(T.LE,
+      index, limit, b, done), T.LABEL inc, 
+      T.MOVE(index, T.BINOP(T.PLUS, index, T.CONST 1)),
+      T.JUMP(T.NAME(b), [b]), T.LABEL(b), body', T.CJUMP(T.LT, index,
+      limit, inc, done), T.LABEL(done)])
+    end
+
   fun declist(head, tail) = Nx(seq[unNx head, unNx tail])
 
   fun let_exp(decs, body) = Ex(T.ESEQ(unNx decs, unEx body))

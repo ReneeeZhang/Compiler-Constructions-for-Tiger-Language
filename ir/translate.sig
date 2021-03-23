@@ -26,6 +26,7 @@ sig
   val op_exp : exp * exp * Absyn.oper -> exp
   val cond_exp : exp * exp * Absyn.oper -> exp
   val while_exp : exp * exp * Temp.label-> exp
+  val for_exp : access * exp * exp * exp * Temp.label -> exp
   val if_else_exp : exp * exp * exp -> exp
   val let_exp : exp *  exp -> exp
   val declist : exp * exp -> exp
