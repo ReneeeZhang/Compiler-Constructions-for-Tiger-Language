@@ -211,7 +211,9 @@ struct
       | _ => Ex(T.BINOP(T.MUL, unEx left, unEx right))) 
     | op_exp (left, right, A.DivideOp) =
       (case unEx(left) of T.CONST(left_const) => (
-          case unEx(right) of T.CONST(right_const) => Ex(T.CONST(left_const div right_const))
+          case unEx(right) of T.CONST(right_const) => (
+			  if left_const mod right_const = 0 then Ex(T.CONST(left_const div right_const))
+			  else Ex(T.BINOP(T.DIV, unEx left, unEx right))) 
           | _ => Ex(T.BINOP(T.DIV, unEx left, unEx right))
       )
 
