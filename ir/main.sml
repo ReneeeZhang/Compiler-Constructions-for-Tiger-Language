@@ -18,27 +18,27 @@ struct
       end
     | frags (MipsFrame.STRING(l, s)::t) = (print(Symbol.name(l) ^ " : " ^ s ^ 
     " \n"); frags(t))
-(*
-  fun esc filename = 
-    let 
-      val ast = P.parse filename
-    in
-      (F.findEscape ast; PrintAbsyn.print(TextIO.stdOut, ast))
-    end
+
+  fun frags_full ([]) = print("End \n")
+    | frags_full (MipsFrame.PROC{body=body, frame=frame}::t) =
+      let
+        val name = #name frame
+      in
+        (print(Symbol.name(name) ^ " : \n"); PT.printtree(TextIO.stdOut,body);
+         frags_full(t))
+      end
+    | frags_full (MipsFrame.STRING(l, s)::t) = (print(Symbol.name(l) ^ " : " ^ s ^ 
+    " \n"); frags_full(t))
+
+
   fun run filename = 
     let
       val ast = P.parse filename
+      val f = (F.findEscape ast; S.transProg ast)
     in
-      (F.findEscape ast; S.transProg(ast))
+      frags_full(f)
     end
-  fun print filename = 
-    let 
-      val ast = P.parse filename
-      val checked = (F.findEscape ast; S.transProg ast)
-    in
-      PT.printtree(TextIO.stdOut, T.EXP(Translate.unEx(#exp checked)))
-    end
- *)
+
   fun lin filename = 
     let
       val ast = P.parse filename
