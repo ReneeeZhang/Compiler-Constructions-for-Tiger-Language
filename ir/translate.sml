@@ -66,7 +66,7 @@ struct
       (T.EXP(T.CONST 0)))
 
   fun unCx (Cx genstm) = genstm 
-    | unCx (Ex e) = (fn(t,f) => T.CJUMP(T.EQ, e, T.CONST 0, t,f))
+    | unCx (Ex e) = (fn(t,f) => T.CJUMP(T.NE, e, T.CONST 0, t,f))
     | unCx (Nx n) = (ErrorMsg.error 0 ("Should never be called"); fn(t,f) =>
         T.CJUMP(T.EQ, T.CONST 0, T.CONST 0, t,f))
     | unCx (Un ()) = (ErrorMsg.error 0 ("Cannot translate bad type"); fn(t,f) =>
@@ -248,14 +248,40 @@ struct
 
   fun int_exp (v) = Ex(T.CONST(v))
 
-  fun cond_exp (left, right, A.EqOp) = Cx(fn (t,f) => T.CJUMP(T.EQ, unEx left, unEx right, t, f))
-    | cond_exp (left, right, A.NeqOp) = Cx(fn (t,f) => T.CJUMP(T.NE, unEx left, unEx right, t, f))
-    | cond_exp (left, right, A.GtOp) = Cx(fn (t,f) => T.CJUMP(T.GT, unEx left, unEx right, t, f))
-    | cond_exp (left, right, A.GeOp) = Cx(fn (t,f) => T.CJUMP(T.GE, unEx left, unEx right, t, f))
-    | cond_exp (left, right, A.LtOp) = Cx(fn (t,f) => T.CJUMP(T.LT, unEx left, unEx right, t, f))
-    | cond_exp (left, right, A.LeOp) = Cx(fn (t,f) => T.CJUMP(T.LE, unEx left, unEx right, t, f))
+  fun trivialCondition (T.CONST(l), T.CONST(r), A.EqOp) = if (l = r) then SOME(1) else SOME(0)
+    | trivialCondition (T.CONST(l), T.CONST(r), A.NeqOp) = if (l <> r) then SOME(1) else SOME(0)
+    | trivialCondition (T.CONST(l), T.CONST(r), A.GtOp) = if (l > r) then SOME(1) else SOME(0)
+    | trivialCondition (T.CONST(l), T.CONST(r), A.GeOp) = if (l >= r) then SOME(1) else SOME(0)
+    | trivialCondition (T.CONST(l), T.CONST(r), A.LtOp) = if (l < r) then SOME(1) else SOME(0)
+    | trivialCondition (T.CONST(l), T.CONST(r), A.LeOp) = if (l <= r) then SOME(1) else SOME(0)
+    | trivialCondition (T.TEMP(a), T.TEMP(b), A.EqOp) = if (a = b) then SOME(1) else SOME(0)
+    | trivialCondition (T.TEMP(a), T.TEMP(b), A.NeqOp) = if (a <> b) then SOME(1) else SOME(0)
+    | trivialCondition (_, _, _) = NONE
 
-  fun if_else_exp (cond, e1, e2) = 
+
+  fun cond_exp (left, right, A.EqOp) = (case trivialCondition(unEx(left), unEx(right), A.EqOp) of
+    SOME(res) => Ex(T.CONST res)
+    | NONE => Cx(fn (t,f) => T.CJUMP(T.EQ, unEx left, unEx right, t, f)))
+    | cond_exp (left, right, A.NeqOp) = (case trivialCondition(unEx(left), unEx(right), A.NeqOp) of
+    SOME(res) => Ex(T.CONST res)
+    | NONE => Cx(fn (t,f) => T.CJUMP(T.NE, unEx left, unEx right, t, f)))
+    | cond_exp (left, right, A.GtOp) = (case trivialCondition(unEx(left), unEx(right), A.GtOp) of
+    SOME(res) => Ex(T.CONST res)
+    | NONE => Cx(fn (t,f) => T.CJUMP(T.GT, unEx left, unEx right, t, f)))
+    | cond_exp (left, right, A.GeOp) = (case trivialCondition(unEx(left), unEx(right), A.GeOp) of
+    SOME(res) => Ex(T.CONST res)
+    | NONE => Cx(fn (t,f) => T.CJUMP(T.GE, unEx left, unEx right, t, f)))
+    | cond_exp (left, right, A.LtOp) = (case trivialCondition(unEx(left), unEx(right), A.LtOp) of
+    SOME(res) => Ex(T.CONST res)
+    | NONE => Cx(fn (t,f) => T.CJUMP(T.LT, unEx left, unEx right, t, f)))
+    | cond_exp (left, right, A.LeOp) = (case trivialCondition(unEx(left), unEx(right), A.LeOp) of
+    SOME(res) => Ex(T.CONST res)
+    | NONE => Cx(fn (t,f) => T.CJUMP(T.LE, unEx left, unEx right, t, f)))
+
+  fun if_else_exp (cond, e1, e2) = case unEx(cond) of 
+    T.CONST(0) => e2
+    | T.CONST(_) => e1
+    | _ => (
     let 
       val cond' = unCx cond
       val e1' = unEx e1
@@ -268,12 +294,16 @@ struct
       Ex(T.ESEQ(seq[cond'(t,f), T.LABEL t, T.MOVE(T.TEMP(r), e1'), 
       T.JUMP(T.NAME(tl), [tl]), T.LABEL f,  T.MOVE(T.TEMP(r), e2'), T.LABEL tl], T.TEMP(r)))
     end
+    )
 
   fun initialize_dec((lev,MF.InReg(i)), init) =  Nx(T.MOVE(T.TEMP(i), unEx init))
     | initialize_dec((lev,MF.InFrame(i)), init) = Nx(T.MOVE(T.MEM(T.BINOP(T.PLUS,
       T.TEMP(MF.FP), T.CONST i)),unEx init))
 
-  fun if_exp (cond, e1) =
+  fun if_exp (cond, e1) = case unEx(cond) of 
+    T.CONST(0) => Nx(T.LABEL (Temp.newlabel()))
+    | T.CONST(_) => e1
+    | _ => (
     let
       val cond' = unCx cond
       val e' = unEx e1
@@ -282,6 +312,7 @@ struct
     in
       Nx(seq[cond'(t,f), T.LABEL t, T.EXP(e'), T.LABEL f])
     end
+    )
 
   fun break_exp (lab) = Nx(T.JUMP(T.NAME(lab), [lab]))
 
