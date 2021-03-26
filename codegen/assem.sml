@@ -13,7 +13,7 @@ datatype instr = OPER of {assem: string,
 			  dst: temp,
 			  src: temp}
 
-fun format saytemp =
+fun format saytemp = (* (Assem.temp -> string) -> Assem.instr -> string *)
     let 
 	fun speak(assem,dst,src,jump) =
 	    let val saylab = Symbol.name    
