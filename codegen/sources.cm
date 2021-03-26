@@ -3,6 +3,8 @@ Group is
 
 main.sml
 assem.sml
+frame.sig
+mips_frame.sml
 ../ir/convert.sml
 canon.sml
 ../ir/translate.sig
@@ -15,8 +17,6 @@ canon.sml
 ../ir/env.sig
 ../ir/env.sml
 ../ir/types.sml
-../ir/frame.sig
-../ir/mips_frame.sml
 ../typechecker/escape.sml
 
 ../parser-with-absyn-tree-generation/absyn.sml
