@@ -3,6 +3,7 @@
 *~
 *.swp
 *.s
+
 # codegen
 codegen/.cm/
 codegen/runscript.sml
