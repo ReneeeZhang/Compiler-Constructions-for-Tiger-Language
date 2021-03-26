@@ -10,9 +10,14 @@ sig
     val allocLocal : frame -> bool -> access (* allocate a new local variable in a frame; The boolean argument to allocLocal 
                                                 specifies whether the new variable escapes and needs to go in the frame; 
                                                 if it is false, then the variable can be allocated in a register. *)  
-    val argregs : Temp.temp list
+
     val FP : Temp.temp
     val RA : Temp.temp
+    val RVs : Temp.temp list
+    (* val argregs : Temp.temp list
+    val callersaves : Temp.temp list
+    val calleesaves : Temp.temp list
+    val specialregs : Temp.temp list *)
     val wordSize : int
     val string : Tree.label * string -> string
     val display : Temp.temp -> string
@@ -20,10 +25,6 @@ sig
     val exp : access -> Tree.exp -> Tree.exp (* used by Translate to turn a Frame.access into the Tree expression. 
                                             The Tree.exp argument to Frame.exp is the address of the stack frame that the access lives in *)
     val externalCall: string * Tree.exp list -> Tree.exp
-    (* Uncomment as needed - for advanced functionalities *)
-    (* 
-    val RV : Temp. temp
-	*)
     datatype frag = PROC of {body: Tree.stm, frame: frame}
                   | STRING of Temp.label * string 
 	val emptyFrame: frame
