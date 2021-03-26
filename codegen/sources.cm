@@ -5,6 +5,8 @@ main.sml
 assem.sml
 frame.sig
 mips_frame.sml
+codegen.sig
+mipsgen.sml
 ../ir/convert.sml
 canon.sml
 ../ir/translate.sig
