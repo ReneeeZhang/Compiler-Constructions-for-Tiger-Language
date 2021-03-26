@@ -1,14 +1,27 @@
 structure MipsFrame : FRAME = 
 struct
 
+structure TT = Temp.Table
+
 datatype access = InFrame of int
                 | InReg of Temp.temp
 type frame = {formals: access list, view_shift: Tree.stm list, numlocals: int ref, name: Temp.label}
+type register = string
 datatype frag = PROC of {body: Tree.stm, frame: frame}
                   | STRING of Temp.label * string 
 val FP = Temp.newtemp()
 val RA = Temp.newtemp()
 val argregs = [Temp.newtemp(), Temp.newtemp(), Temp.newtemp(), Temp.newtemp()] 
+
+val tempMap = let val tmap1 = TT.enter(TT.empty, 100, "fp")
+                  val tmap2 = TT.enter(tmap1, 101, "ra")
+                  val tmap3 = TT.enter(tmap2, 102, "a0")
+                  val tmap4 = TT.enter(tmap3, 103, "a1")
+                  val tmap5 = TT.enter(tmap4, 104, "a2")
+                  val tmap_final = TT.enter(tmap5, 105, "a3")
+              in
+                    tmap_final
+              end
 
 val wordSize = 4
 val emptyFrame = {formals=([]: access list), view_shift=([]: Tree.stm list), numlocals=ref 0, name=Temp.newlabel()}
@@ -72,6 +85,11 @@ fun formals {formals, view_shift, numlocals, name} =
     formals
 
 fun string (lab, s) = s (* TODO: need to rewrite later *)
+
+fun display temp = 
+    case TT.look(tempMap, temp) of
+        SOME(regname) => regname
+      | NONE => Temp.makestring(temp)
 	     
 fun allocLocal {formals, view_shift, numlocals, name} escaped = 
     if escaped

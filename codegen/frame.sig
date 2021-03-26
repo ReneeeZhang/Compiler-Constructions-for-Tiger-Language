@@ -1,5 +1,6 @@
 signature FRAME =
 sig
+    type register = string
     type frame (* The type frame holds information about formal parameters and local variables allocated in this frame *)
     datatype access = InFrame of int
                     | InReg of Temp.temp(* The access type describes formals and locals that may be in the frame or in registers *)
@@ -14,6 +15,8 @@ sig
     val RA : Temp.temp
     val wordSize : int
     val string : Tree.label * string -> string
+    val display : Temp.temp -> string
+    val tempMap : register Temp.Table.table
     val exp : access -> Tree.exp -> Tree.exp (* used by Translate to turn a Frame.access into the Tree expression. 
                                             The Tree.exp argument to Frame.exp is the address of the stack frame that the access lives in *)
     val externalCall: string * Tree.exp list -> Tree.exp
