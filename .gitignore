@@ -2,9 +2,10 @@
 *.tig
 *~
 *.swp
-
+*.s
 # codegen
 codegen/.cm/
+codegen/runscript.sml
 
 # ir
 ir/.cm/**
