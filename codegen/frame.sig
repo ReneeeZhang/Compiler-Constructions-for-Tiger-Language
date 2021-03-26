@@ -24,8 +24,13 @@ sig
     val tempMap : register Temp.Table.table
     val exp : access -> Tree.exp -> Tree.exp (* used by Translate to turn a Frame.access into the Tree expression. 
                                             The Tree.exp argument to Frame.exp is the address of the stack frame that the access lives in *)
-    val externalCall: string * Tree.exp list -> Tree.exp
+    val externalCall : string * Tree.exp list -> Tree.exp
     datatype frag = PROC of {body: Tree.stm, frame: frame}
                   | STRING of Temp.label * string 
-	val emptyFrame: frame
+	val emptyFrame : frame
+
+    val procEntryExit1 : frame * Tree.stm -> Tree.stm
+    val procEntryExit2 : frame * Assem.instr list -> Assem.instr list
+    val procEntryExit3 : frame * Assem.instr list -> {prolog: string, body: Assem.instr list, epilog: string}
+    
 end

@@ -143,4 +143,12 @@ fun allocLocal {formals, view_shift, numlocals, name} escaped =
 fun externalCall(s, args) =
     Tree.CALL(Tree.NAME(Temp.namedlabel s), args)
 
+fun procEntryExit1(frame, body) = body (* Need updating later *)
+
+fun procEntryExit2(frame, body) = (* Need updating later *)
+    body @ [Assem.OPER{assem="", src =[ZERO,RA,SP]@calleesaves, dst=[], jump=SOME[]}]
+
+fun procEntryExit3({formals, view_shift, numlocals, name}, body) = (* Need updating later *)
+    {prolog = "PROCEDURE " ^ Symbol.name name ^ "\n", body = body, epilog = "END " ^ Symbol.name name ^ "\n"}
+
 end
