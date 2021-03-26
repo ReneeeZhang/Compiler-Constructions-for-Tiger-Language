@@ -3,6 +3,9 @@
 *~
 *.swp
 
+# codegen
+codegen/.cm/
+
 # ir
 ir/.cm/**
 ir/runscript.sml
