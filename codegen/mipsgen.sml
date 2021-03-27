@@ -3,10 +3,13 @@ struct
 structure Frame = MipsFrame
 structure T = Tree
 structure A = Assem
+structure Symbol = Symbol
 
 fun codegen (frame) (stm: Tree.stm) : Assem.instr list = 
     let val ilist = ref (nil: Assem.instr list)
+    val calldefs = Frame.RA :: (Frame.argregs @ Frame.callersaves @ Frame.RVs)
     fun emit x= ilist := x :: !ilist
+    fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["print", "flush", "getchar", "ord", "chr", "size", "substring", "concat", "not", "exit"]
     fun result(gen) =
 	    let val t = Temp.newtemp()
 	    in
@@ -54,7 +57,22 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
             emit(A.OPER{assem="BNE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
             e2], dst=[], jump=SOME([tlab])})
       | munchStm(T.LABEL(lab)) = emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab})
+      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = emit(A.OPER{
+        assem="JAL `j0",
+        src=(if isLibraryCall((Symbol.name fNameLabel)) then munchArgs(0, arg::args) else (munchStaticLink(arg); munchArgs(0, args))),
+        dst=calldefs,
+        jump=SOME([fNameLabel])
+      })
+      | munchStm(T.EXP(T.CALL(_, argExps))) =  () (* Won't ever happen *)
        
+    and munchStaticLink(arg) = munchStm(T.MOVE(T.MEM(T.TEMP (Frame.SP)), T.TEMP (munchExp(arg))))
+    and munchArgs(argNumber, arg::[]) = if argNumber < 4 then
+          (munchStm(T.MOVE((T.TEMP(List.nth(Frame.argregs, argNumber))), arg)); [List.nth(Frame.argregs, argNumber)])
+        else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber - 4)*4))), T.TEMP (munchExp(arg)))); [])
+      | munchArgs(argNumber, arg::args) = if argNumber < 4 then
+          munchArgs(argNumber, [arg]) @ munchArgs(argNumber + 1, args)
+        else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber - 4)*4))),T.TEMP (munchExp(arg)))); munchArgs(argNumber+1, args))
+      | munchArgs(argNumber, []) = []
 
     and munchExp (T.CONST i) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^Int.toString(i)^"\n",
@@ -71,8 +89,8 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       | munchExp (T.BINOP(T.MINUS, T.CONST i, e1)) = 
             result(fn r => emit(A.OPER{assem="SUBI `d0, `s0, "^ 
             Int.toString(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
-      | munchExp (T.NAME l) = result(fn r =>
-          emit(A.LABEL{assem=Symbol.name(l)^":\n", lab=l}))
+      | munchExp (T.NAME l) = result(fn r => ())
+      | munchExp (T.CALL (a, b)) = (munchStm(T.EXP(T.CALL(a,b))); List.nth(Frame.RVs, 0))
       | munchExp (T.BINOP(T.MUL, e1, e2)) = 
             result(fn r => emit(A.OPER{assem="MUL `d0, `s0, `s1\n",
             src=[munchExp e1, munchExp e2], dst=[r], jump=NONE}))
@@ -86,6 +104,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
             result(fn r => emit(A.OPER{assem="ADD `d0, `s0, `s1\n",
             src=[munchExp e1, munchExp e2], dst=[r], jump=NONE}))
       | munchExp(T.TEMP t) = t
+      | munchExp(T.ESEQ(a, b)) = (munchStm(a); munchExp(b))
       | munchExp(T.MEM(T.BINOP(T.PLUS, e, T.CONST i))) = 
         result(fn r => emit(A.OPER{assem="LW `d0, " ^ Int.toString(i) ^ "(`s0)\n",
 				   src=[munchExp e],
