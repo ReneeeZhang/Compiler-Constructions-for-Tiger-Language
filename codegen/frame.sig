@@ -14,10 +14,11 @@ sig
     val FP : Temp.temp
     val RA : Temp.temp
     val RVs : Temp.temp list
-    (* val argregs : Temp.temp list
+    val argregs : Temp.temp list
     val callersaves : Temp.temp list
     val calleesaves : Temp.temp list
-    val specialregs : Temp.temp list *)
+    val specialregs : Temp.temp list
+	val SP : Temp.temp
     val wordSize : int
     val string : Tree.label * string -> string
     val display : Temp.temp -> string
