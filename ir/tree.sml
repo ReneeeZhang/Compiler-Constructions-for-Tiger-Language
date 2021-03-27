@@ -24,7 +24,7 @@ sig
 	 and relop = EQ | NE | LT | GT | LE | GE 
 	             | ULT | ULE | UGT | UGE
 
-					     (* TODO: uncomment them *)
+    (* TODO: uncomment them *)
    val notRel : relop -> relop
   (* val commute: relop -> relop *)
 end
