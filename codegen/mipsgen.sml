@@ -14,6 +14,18 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
 	    end
 
 	fun munchStm(T.SEQ(a,b)) = (munchStm a; munchStm b)
+      | munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.CONST i, e1)), e2)) = 
+            emit(A.OPER{assem="SW "^Int.toString(i)^"(`s0), `s1", src=[munchExp
+            e1, munchExp e2], dst=[], jump=NONE})
+      | munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, e1, T.CONST i)), e2)) = 
+            emit(A.OPER{assem="SW "^Int.toString(i)^"(`s0), `s1", src=[munchExp
+            e1, munchExp e2], dst=[], jump=NONE})
+      | munchStm(T.MOVE(T.MEM(T.CONST i), e1)) = 
+            emit(A.OPER{assem="SW 0("^Int.toString(i)^"), `s1", src=[munchExp e1],
+            dst=[], jump=NONE})
+      | munchStm(T.MOVE(T.MEM(e1), e2)) = 
+            emit(A.OPER{assem="SW 0(`s0), `s1", src=[munchExp e1, munchExp e2],
+            dst=[], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, T.CONST j)) = 
             emit(A.OPER{assem="ADDI `d0, r0, "^Int.toString(j)^"\n", src=[],
             dst=[i], jump=NONE})
