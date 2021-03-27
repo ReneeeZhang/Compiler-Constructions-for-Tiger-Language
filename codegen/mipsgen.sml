@@ -68,10 +68,10 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
     and munchStaticLink(arg) = munchStm(T.MOVE(T.MEM(T.TEMP (Frame.SP)), T.TEMP (munchExp(arg))))
     and munchArgs(argNumber, arg::[]) = if argNumber < 4 then
           (munchStm(T.MOVE((T.TEMP(List.nth(Frame.argregs, argNumber))), arg)); [List.nth(Frame.argregs, argNumber)])
-        else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber - 4)*4))), T.TEMP (munchExp(arg)))); [])
+        else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber + 1)*4))), T.TEMP (munchExp(arg)))); [])
       | munchArgs(argNumber, arg::args) = if argNumber < 4 then
           munchArgs(argNumber, [arg]) @ munchArgs(argNumber + 1, args)
-        else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber - 4)*4))),T.TEMP (munchExp(arg)))); munchArgs(argNumber+1, args))
+        else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber + 1)*4))),T.TEMP (munchExp(arg)))); munchArgs(argNumber+1, args))
       | munchArgs(argNumber, []) = []
 
     and munchExp (T.CONST i) = 
