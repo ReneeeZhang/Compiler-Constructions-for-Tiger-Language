@@ -70,7 +70,7 @@ asciicodes = [0][0-9][0-9]|[1][0-1][0-9]|[1][2][0-7];
 <INITIAL>\"   => (YYBEGIN STR; strpos := yypos; strbuf := ""; strcnt := !strcnt + 1; continue());
 <STR>\"       => (YYBEGIN INITIAL; strcnt := !strcnt - 1; Tokens.STRING((!strbuf), !strpos, yypos+1));
 <STR>[^"\\]    => (strbuf := !strbuf ^ yytext; continue());
-<STR>\\n     => (strbuf := !strbuf ^ "\n"; continue());
+<STR>\\n     => (strbuf := !strbuf ^ "\\" ^ "n"; continue());
 <STR>\\\"    => (strbuf := !strbuf ^ "\""; continue());
 <STR>\\[\n\t ]+\\   => (continue());
 <STR>\\[\n\t ]*[^\n\t ]+[\n\t ]*\\ => (ErrorMsg.error yypos ("Illegal whitespace character"); continue());
