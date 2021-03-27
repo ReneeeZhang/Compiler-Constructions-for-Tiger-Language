@@ -35,6 +35,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       | munchStm(T.MOVE(T.TEMP i, e2)) = 
         emit(A.OPER{assem="ADD `d0, `s0, r0\n", src=[munchExp e2],
         dst=[i],jump=NONE})
+      | munchStm(T.MOVE(_, _)) = () (* Won't ever happen *)
       | munchStm(T.JUMP(T.TEMP(t), dest)) = 
             emit(A.OPER{assem="JR `s0\n", src=[t], dst=[],
             jump=SOME(dest)})
@@ -59,6 +60,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       | munchStm(T.CJUMP(T.NE, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BNE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
             e2], dst=[], jump=SOME([tlab])})
+      | munchStm(T.CJUMP(_, e1, e2, tlab, flab)) = () (* Won't ever happen *)
       | munchStm(T.LABEL(lab)) = emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab})
       | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = emit(A.OPER{
         assem="JAL `j0\n",
@@ -66,7 +68,14 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
         dst=calldefs,
         jump=SOME([fNameLabel])
       })
-      | munchStm(T.EXP(T.CALL(_, argExps))) =  () (* Won't ever happen *)
+      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), []))) = emit(A.OPER{
+        assem="JAL `j0\n",
+        src=[], 
+        dst=calldefs,
+        jump=SOME([fNameLabel])
+      }) (* this has to be a library call *)
+      | munchStm(T.EXP(T.CALL(_, _))) =  () (* Won't ever happen *)
+      | munchStm(T.EXP(a)) = (munchExp(a); ()) (* No side effects; can ignore *)
        
     and munchStaticLink(arg) = munchStm(T.MOVE(T.MEM(T.TEMP (Frame.SP)), T.TEMP (munchExp(arg))))
     and munchArgs(argNumber, arg::[]) = if argNumber < 4 then
@@ -106,6 +115,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       | munchExp (T.BINOP(T.PLUS, e1, e2)) = 
             result(fn r => emit(A.OPER{assem="ADD `d0, `s0, `s1\n",
             src=[munchExp e1, munchExp e2], dst=[r], jump=NONE}))
+      | munchExp (T.BINOP(_, e1, e2)) = Temp.newtemp() (* Won't ever happen *)
       | munchExp(T.TEMP t) = t
       | munchExp(T.ESEQ(a, b)) = (munchStm(a); munchExp(b))
       | munchExp(T.MEM(T.BINOP(T.PLUS, e, T.CONST i))) = 
