@@ -126,7 +126,7 @@ fun name {formals, view_shift, numlocals, name} =
 fun formals {formals, view_shift, numlocals, name} = 
     formals
 
-fun string (lab, s) = s (* TODO: need to rewrite later *)
+fun string (lab, s) = (Symbol.name(lab) ^ ": .asciiz \"" ^ s ^ "\"\n")
 
 fun display temp = 
     case TT.look(tempMap, temp) of
