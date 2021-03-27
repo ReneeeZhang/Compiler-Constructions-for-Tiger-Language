@@ -35,8 +35,11 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       | munchStm(T.MOVE(T.TEMP i, e2)) = 
         emit(A.OPER{assem="ADD `d0, `s0, r0\n", src=[munchExp e2],
         dst=[i],jump=NONE})
-      | munchStm(T.JUMP(e, dest)) = 
-            emit(A.OPER{assem="JUMP `j0\n", src=[], dst=[],
+      | munchStm(T.JUMP(T.TEMP(t), dest)) = 
+            emit(A.OPER{assem="JR `s0\n", src=[t], dst=[],
+            jump=SOME(dest)})
+      | munchStm(T.JUMP(_, dest)) = 
+            emit(A.OPER{assem="J `j0\n", src=[], dst=[],
             jump=SOME(dest)})
       | munchStm(T.CJUMP(T.LE, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BLE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
