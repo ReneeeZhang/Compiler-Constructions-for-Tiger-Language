@@ -75,25 +75,24 @@ fun newFrame {name=n, formals=fo} =
                                                 else InReg(Temp.newtemp())) fo
                           
         val view_shift_insns =
-	    let fun aux (al, argregs) = 
-		    let val num_extra_args = ref 0
+	    let fun aux (al, argregs, num_extra_args) = 
+		    let val _ = ref 0
 		    in
 			case (al, argregs) of
                             ([], _) => Tree.MOVE(Tree.TEMP(ZERO), Tree.TEMP(ZERO))
                           | (a::al', reg::argregs') => Tree.SEQ(Tree.MOVE(
 							  (exp a (Tree.TEMP(FP))),
 							  Tree.TEMP(reg)
-						      ),aux(al', argregs'))
+						      ),aux(al', argregs', num_extra_args))
                           (* (case a of
 			     InFrame(offset) => Tree.MOVE(Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(offset))), Tree.TEMP(reg))::aux(al', argregs')
 			     | InReg(tem) => Tree.MOVE(Tree.TEMP(tem), Tree.TEMP(reg))::aux(al', argregs')) *)
 			  | (a::al', []) => (* has more arguments than argregs can hold *)
 			    (
-			      num_extra_args := !num_extra_args + 1;
 			      Tree.SEQ(Tree.MOVE(
                                   (exp a (Tree.TEMP(FP))), 
-                                  Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * !num_extra_args)))
-                              ),aux(al', []))
+                                  Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * (num_extra_args + 1))))
+                              ),aux(al', [], num_extra_args + 1))
 			      (* case a of
                                   InFrame(offset) => Tree.MOVE(Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(offset))),
 							       (* Extra args reside in the previous frame, see page 127 *)
@@ -105,7 +104,7 @@ fun newFrame {name=n, formals=fo} =
 			    )
 		    end
             in
-                Tree.SEQ(Tree.LABEL(n), aux (access_list, argregs))
+                Tree.SEQ(Tree.LABEL(n), aux (access_list, argregs, 0))
             end
     in
         {
