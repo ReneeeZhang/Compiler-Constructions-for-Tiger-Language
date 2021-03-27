@@ -56,11 +56,10 @@ val tempMap = let val tmap1 = TT.enter(TT.empty, 100, "$fp")
                   (* special regs *)
                   val tmap25 = TT.enter(tmap24, 124, "$zero")
                   val tmap26 = TT.enter(tmap25, 125, "$at")
-                  val tmap27 = TT.enter(tmap26, 126, "$zero")
-                  val tmap28 = TT.enter(tmap27, 127, "$sp")
-                  val tmap29 = TT.enter(tmap28, 128, "$gp")
-                  val tmap30 = TT.enter(tmap29, 129, "$t8")
-                  val tmap31 = TT.enter(tmap30, 130, "$t9")
+                  val tmap28 = TT.enter(tmap27, 126, "$sp")
+                  val tmap29 = TT.enter(tmap28, 127, "$gp")
+                  val tmap30 = TT.enter(tmap29, 128, "$t8")
+                  val tmap31 = TT.enter(tmap30, 129, "$t9")
 
                   val tmap_final = tmap31
               in
