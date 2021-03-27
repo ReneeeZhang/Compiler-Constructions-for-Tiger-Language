@@ -13,7 +13,7 @@ fun emitproc out (MF.PROC{body,frame}) =
 	(*         val _ = app (fn s => Printtree.printtree(out,s)) stms; *)
         val stms' = Canon.traceSchedule(Canon.basicBlocks stms)
 	val instrs =   List.concat(map (MipsGen.codegen frame) stms') 
-        val format0 = Assem.format(Temp.makestring)
+        val format0 = Assem.format(MF.display)
     in  app (fn i => TextIO.output(out,format0 i)) instrs
     end
   | emitproc out (MF.STRING(lab,s)) = TextIO.output(out,MF.string(lab,s))
