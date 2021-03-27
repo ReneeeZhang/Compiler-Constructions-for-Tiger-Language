@@ -78,7 +78,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
             result(fn r => emit(A.OPER{assem="SUBI `d0 <- `s0 + "^ 
             Int.toString(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.NAME l) = result(fn r => ())
-      | munchExp (T.CALL (a, b)) = (munchStm(T.EXP(T.CALL(a,b))); Temp.newtemp()) (* Won't ever happen *)
+      | munchExp (T.CALL (a, b)) = (munchStm(T.EXP(T.CALL(a,b))); List.nth(Frame.RVs, 0))
       | munchExp (T.BINOP(T.MUL, e1, e2)) = 
             result(fn r => emit(A.OPER{assem="MUL `d0 <- `s0 + `s1\n",
             src=[munchExp e1, munchExp e2], dst=[r], jump=NONE}))
