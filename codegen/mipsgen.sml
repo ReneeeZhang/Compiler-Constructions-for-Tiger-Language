@@ -18,16 +18,16 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
 
 	fun munchStm(T.SEQ(a,b)) = (munchStm a; munchStm b)
       | munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.CONST i, e1)), e2)) = 
-            emit(A.OPER{assem="SW "^Int.toString(i)^"(`s0), `s1\n", src=[munchExp
+            emit(A.OPER{assem="SW `s1, "^Int.toString(i)^"(`s0)\n", src=[munchExp
             e1, munchExp e2], dst=[], jump=NONE})
       | munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, e1, T.CONST i)), e2)) = 
-            emit(A.OPER{assem="SW "^Int.toString(i)^"(`s0), `s1\n", src=[munchExp
+            emit(A.OPER{assem="SW `s1, "^Int.toString(i)^"(`s0)\n", src=[munchExp
             e1, munchExp e2], dst=[], jump=NONE})
       | munchStm(T.MOVE(T.MEM(T.CONST i), e1)) = 
-            emit(A.OPER{assem="SW 0("^Int.toString(i)^"), `s1\n", src=[munchExp e1],
+            emit(A.OPER{assem="SW `s0, 0("^Int.toString(i)^"), \n", src=[munchExp e1],
             dst=[], jump=NONE})
       | munchStm(T.MOVE(T.MEM(e1), e2)) = 
-            emit(A.OPER{assem="SW 0(`s0), `s1\n", src=[munchExp e1, munchExp e2],
+            emit(A.OPER{assem="SW `s1, 0(`s0)\n", src=[munchExp e1, munchExp e2],
             dst=[], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, T.CONST j)) = 
             emit(A.OPER{assem="ADDI `d0, r0, "^Int.toString(j)^"\n", src=[],
@@ -58,7 +58,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
             e2], dst=[], jump=SOME([tlab])})
       | munchStm(T.LABEL(lab)) = emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab})
       | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = emit(A.OPER{
-        assem="JAL `j0",
+        assem="JAL `j0\n",
         src=(if isLibraryCall((Symbol.name fNameLabel)) then munchArgs(0, arg::args) else (munchStaticLink(arg); munchArgs(0, args))),
         dst=calldefs,
         jump=SOME([fNameLabel])

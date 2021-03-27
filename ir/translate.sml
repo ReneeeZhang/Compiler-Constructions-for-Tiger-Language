@@ -405,8 +405,8 @@ struct
   fun procEntryExit ({level: level, body: exp}) =
   ((
     case level of
-      LEVEL(parent, frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
-    | ROOT(frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
+      LEVEL(parent, frame, unique) => fragments := (Frame.PROC({body=T.SEQ((#view_shift frame), T.MOVE(T.TEMP (List.nth(MF.RVs, 0)), unEx(body))), frame=frame})::(!fragments))
+    | ROOT(frame, unique) => fragments := (Frame.PROC({body=T.SEQ((#view_shift frame), T.MOVE(T.TEMP (List.nth(MF.RVs, 0)), unEx(body))), frame=frame})::(!fragments))
     );
     ()
   )
