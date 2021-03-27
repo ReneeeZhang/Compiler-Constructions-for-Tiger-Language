@@ -100,6 +100,17 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
 				   jump=NONE}))
       | munchExp(T.MEM(T.BINOP(T.PLUS, T.CONST i, e))) =
 	munchExp(T.MEM(T.BINOP(T.PLUS, e, T.CONST i)))
+      | munchExp(T.MEM(T.BINOP(T.MINUS, e, T.CONST i))) =
+	result(fn r => emit(A.OPER{assem="LW `d0, " ^ Int.toString(~i) ^ "(`s0)\n",
+				   src=[munchExp e],
+				   dst=[r],
+				   jump=NONE}))
+      (* This case is the same as munchExp(T.MEM(e)) *)
+      (* | munchExp(T.MEM(T.BINOP(T.MINUS, T.CONST i, e))) = *)
+      (* 	result(fn r => emit(A.OPER{assem="LW `d0, 0(`s0)\n", *)
+      (* 				   src=[munchExp(T.BINOP(T.MINUS, T.CONST i, e))], *)
+      (* 				   dst=[r], *)
+      (* 				   jump=NONE})) *)
       | munchExp(T.MEM(e)) =
 	result(fn r => emit(A.OPER{assem="LW `d0, 0(`s0)\n",
 				   src=[munchExp(e)],
