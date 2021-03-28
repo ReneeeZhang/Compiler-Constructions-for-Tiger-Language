@@ -5,7 +5,7 @@ structure TT = Temp.Table
 
 datatype access = InFrame of int
                 | InReg of Temp.temp
-type frame = {formals: access list, view_shift: Tree.stm, numlocals: int ref, name: Temp.label}
+type frame = {formals: access list, view_shift: Tree.stm list, numlocals: int ref, name: Temp.label}
 type register = string
 datatype frag = PROC of {body: Tree.stm, frame: frame}
                   | STRING of Temp.label * string 
@@ -67,7 +67,7 @@ val tempMap = let val tmap1 = TT.enter(TT.empty, 100, "$fp")
               end
 
 val wordSize = 4
-val emptyFrame = {formals=([]: access list), view_shift=(Tree.MOVE(Tree.TEMP(ZERO), Tree.TEMP(ZERO)): Tree.stm), numlocals=ref 0, name=Temp.newlabel()}
+val emptyFrame = {formals=([]: access list), view_shift=([]: Tree.stm list), numlocals=ref 0, name=Temp.newlabel()}
 fun newFrame {name=n, formals=fo} = 
     let val curr = ref 0 (* current number of locals *)
         val access_list =  map (fn (escaped) => if escaped 
@@ -75,36 +75,24 @@ fun newFrame {name=n, formals=fo} =
                                                 else InReg(Temp.newtemp())) fo
                           
         val view_shift_insns =
-	    let fun aux (al, argregs, num_extra_args) = 
-		    let val _ = ref 0
-		    in
-			case (al, argregs) of
-                            ([], _) => Tree.MOVE(Tree.TEMP(ZERO), Tree.TEMP(ZERO))
-                          | (a::al', reg::argregs') => Tree.SEQ(Tree.MOVE(
-							  (exp a (Tree.TEMP(FP))),
-							  Tree.TEMP(reg)
-						      ),aux(al', argregs', num_extra_args))
-                          (* (case a of
-			     InFrame(offset) => Tree.MOVE(Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(offset))), Tree.TEMP(reg))::aux(al', argregs')
-			     | InReg(tem) => Tree.MOVE(Tree.TEMP(tem), Tree.TEMP(reg))::aux(al', argregs')) *)
-			  | (a::al', []) => (* has more arguments than argregs can hold *)
-			    (
-			      Tree.SEQ(Tree.MOVE(
-                                  (exp a (Tree.TEMP(FP))), 
-                                  Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * (num_extra_args + 1))))
-                              ),aux(al', [], num_extra_args + 1))
-			      (* case a of
-                                  InFrame(offset) => Tree.MOVE(Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(offset))),
-							       (* Extra args reside in the previous frame, see page 127 *)
-							       Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * !num_extra_args))))
-						     ::aux(al', [])
-                                | InReg(tem) => Tree.MOVE(Tree.TEMP(tem),
-							  Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * !num_extra_args))))
-						::aux(al', []) *)
-			    )
-		    end
+	    let val actual_al = case access_list of
+				    [] => []
+				  | _::restal => restal (* The first element is static link *)
+		fun aux (al, argregs, num_extra_args) = 
+		    case (al, argregs) of
+                        ([], _) => []
+                      | (a::al', reg::argregs') =>
+			Tree.MOVE(
+			    (exp a (Tree.TEMP(FP))),
+			    Tree.TEMP(reg)
+			)::aux(al', argregs', num_extra_args)
+		      | (a::al', []) => (* has more arguments than argregs can hold *)
+			Tree.MOVE(
+			    (exp a (Tree.TEMP(FP))), 
+			    Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * (num_extra_args + 1))))
+			)::aux(al', [], num_extra_args + 1)    
             in
-                Tree.SEQ(Tree.LABEL(n), aux (access_list, argregs, 0))
+                Tree.LABEL(n)::aux(actual_al, argregs, 0)
             end
     in
         {

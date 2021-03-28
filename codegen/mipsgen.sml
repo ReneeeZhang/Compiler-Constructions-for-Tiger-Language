@@ -5,11 +5,79 @@ structure T = Tree
 structure A = Assem
 structure Symbol = Symbol
 
-fun codegen (frame) (stm: Tree.stm) : Assem.instr list = 
+fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list = 
     let val ilist = ref (nil: Assem.instr list)
     val calldefs = Frame.RA :: (Frame.argregs @ Frame.callersaves @ Frame.RVs)
     fun emit x= ilist := x :: !ilist
     fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["tig_print", "tig_flush", "tig_getchar", "tig_ord", "tig_chr", "tig_size", "tig_substring", "tig_concat", "tig_not", "tig_exit"]
+    fun pushStackForCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+      else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+        else emit(A.OPER{assem="ADDI $sp, $sp, -4\n", src=[], dst=[], jump=NONE}))
+    
+    fun pullStackAfterCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+      else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+        else emit(A.OPER{assem="ADDI $sp, $sp, 4\n", src=[], dst=[], jump=NONE}))
+    
+    fun saveTRegs(0) = ()
+      | saveTRegs(numTs) = (
+      emit(A.OPER{assem="SW $t"^Int.toString(numTs-1)^", "^Int.toString(numTs*4)^"($sp)\n", src=[], dst=[], jump=NONE}); saveTRegs(numTs - 1)
+    )
+    fun loadTRegs(0) = ()
+      | loadTRegs(numTs) = (
+      emit(A.OPER{assem="LW $t"^Int.toString(numTs-1)^", "^Int.toString(numTs*4)^"($sp)\n", src=[], dst=[], jump=NONE}); loadTRegs(numTs - 1)
+    )
+
+    (* 10 $t + 1 $ra *)
+    fun saveCallerSavedRegs() = (
+      emit(A.OPER{assem="\n# Start function-call prologue (save caller-saved regs)\n", src=[], dst=[], jump=NONE});
+      emit(A.OPER{assem="ADDI $sp, $sp, -44\n", src=[], dst=[], jump=NONE});
+      emit(A.OPER{assem="SW $ra, 0($sp)\n", src=[], dst=[], jump=NONE});
+      saveTRegs(10)
+    )
+    fun loadCallerSavedRegs() = (
+      emit(A.OPER{assem="LW $ra, 0($sp)\n", src=[], dst=[], jump=NONE});
+      loadTRegs(10);
+      emit(A.OPER{assem="ADDI $sp, $sp, 44\n", src=[], dst=[], jump=NONE});
+      emit(A.OPER{assem="# End function-call epilogue (load caller-saved regs)\n\n", src=[], dst=[], jump=NONE})
+    )
+
+    fun saveSRegs(0) = ()
+      | saveSRegs(numSs) = (
+      emit(A.OPER{assem="SW $s"^Int.toString(numSs-1)^", "^Int.toString((numSs-1)*4)^"($sp)\n", src=[], dst=[], jump=NONE}); saveSRegs(numSs - 1)
+    )
+
+    fun loadSRegs(0) = ()
+      | loadSRegs(numSs) = (
+      emit(A.OPER{assem="LW $s"^Int.toString(numSs-1)^", "^Int.toString((numSs-1)*4)^"($sp)\n", src=[], dst=[], jump=NONE}); loadSRegs(numSs - 1)
+    )
+
+    fun getCurrentFrameFormalsCount() = 
+      (if ((#name frame) = Symbol.symbol("tig_main")) then 0 else (List.length(#formals frame) - 1))
+    (* 8 $s + 1 $fp *)
+    fun saveCalleeSavedRegs() = (
+        emit(A.OPER{assem="# Start function-body prologue (save callee-saved regs)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="SW $fp, -"^Int.toString(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="MOVE $fp, $sp\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="ADDI $sp, $sp, -"^Int.toString(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
+        saveSRegs(8);
+        emit(A.OPER{assem="# End function-body prologue  (save callee-saved regs)\n\n", src=[], dst=[], jump=NONE})
+    )
+
+    fun loadCalleeSavedRegs() = (
+        emit(A.OPER{assem="\n# Start function-body epilogue (load callee-saved regs)\n", src=[], dst=[], jump=NONE});
+        loadSRegs(8);
+        emit(A.OPER{assem="ADDI $sp, $sp, "^Int.toString(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="LW $fp, -"^Int.toString(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="# End function-body epilogue (load callee-saved regs)\n", src=[], dst=[], jump=NONE})
+    )
+    fun emitCalleeSavedRegsCodeIfNeeded(labelName) = (
+      if String.isPrefix "tig_" labelName then saveCalleeSavedRegs() else ()
+    )
+
+    fun emitCalleeSavedRegsLoadCodeIfNeeded(target) = (
+      if target = Frame.RA then loadCalleeSavedRegs() else ()
+    )
+
     fun result(gen) =
 	    let val t = Temp.newtemp()
 	    in
@@ -33,12 +101,14 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
             emit(A.OPER{assem="ADDI `d0, r0, "^Int.toString(j)^"\n", src=[],
             dst=[i], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, e2)) = 
+        if i = Frame.ZERO andalso (munchExp e2) = Frame.ZERO then () else
         emit(A.OPER{assem="ADD `d0, `s0, r0\n", src=[munchExp e2],
         dst=[i],jump=NONE})
       | munchStm(T.MOVE(_, _)) = () (* Won't ever happen *)
       | munchStm(T.JUMP(T.TEMP(t), dest)) = 
-            emit(A.OPER{assem="JR `s0\n", src=[t], dst=[],
-            jump=SOME(dest)})
+            (emitCalleeSavedRegsLoadCodeIfNeeded(t);
+            emit(A.OPER{assem="JR `s0\n\n", src=[t], dst=[],
+            jump=SOME(dest)}))
       | munchStm(T.JUMP(_, dest)) = 
             emit(A.OPER{assem="J `j0\n", src=[], dst=[],
             jump=SOME(dest)})
@@ -61,19 +131,34 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
             emit(A.OPER{assem="BNE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
             e2], dst=[], jump=SOME([tlab])})
       | munchStm(T.CJUMP(_, e1, e2, tlab, flab)) = () (* Won't ever happen *)
-      | munchStm(T.LABEL(lab)) = emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab})
-      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = emit(A.OPER{
-        assem="JAL `j0\n",
-        src=(if isLibraryCall((Symbol.name fNameLabel)) then munchArgs(0, arg::args) else (munchStaticLink(arg); munchArgs(0, args))),
-        dst=calldefs,
-        jump=SOME([fNameLabel])
-      })
-      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), []))) = emit(A.OPER{
-        assem="JAL `j0\n",
-        src=[], 
-        dst=calldefs,
-        jump=SOME([fNameLabel])
-      }) (* this has to be a library call *)
+      | munchStm(T.LABEL(lab)) = (emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab}); emitCalleeSavedRegsCodeIfNeeded(Symbol.name(lab)))
+      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = (saveCallerSavedRegs(); 
+        emit(A.OPER{assem="# End function-call prologue (save caller-saved regs)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="# Start (save static link and args on stack)\n", src=[], dst=[], jump=NONE});
+        pushStackForCall(Symbol.name fNameLabel, List.length(arg::args));
+        let val srcArray = (if isLibraryCall((Symbol.name fNameLabel)) then munchArgs(0, arg::args) else (munchStaticLink(arg); munchArgs(0, args)))
+        in
+        (emit(A.OPER{assem="# End (save static link and args on stack)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{
+          assem="JAL `j0\n",
+          src=srcArray,
+          dst=calldefs,
+          jump=SOME([fNameLabel])
+        }))
+        end;
+      emit(A.OPER{assem="# Start function-call epilogue (load caller-saved regs)\n", src=[], dst=[], jump=NONE});
+      pullStackAfterCall(Symbol.name fNameLabel, List.length(arg::args));
+      loadCallerSavedRegs())
+      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), []))) = (saveCallerSavedRegs();
+        emit(A.OPER{assem="# End function-call prologue (save caller-saved regs)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{
+          assem="JAL `j0\n",
+          src=[], 
+          dst=calldefs,
+          jump=SOME([fNameLabel])
+        });
+      emit(A.OPER{assem="# Start function-call epilogue (load caller-saved regs)\n\n", src=[], dst=[], jump=NONE});
+      loadCallerSavedRegs()) (* this has to be a library call *)
       | munchStm(T.EXP(T.CALL(_, _))) =  () (* Won't ever happen *)
       | munchStm(T.EXP(a)) = (munchExp(a); ()) (* No side effects; can ignore *)
        
@@ -84,7 +169,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       | munchArgs(argNumber, arg::args) = if argNumber < 4 then
           munchArgs(argNumber, [arg]) @ munchArgs(argNumber + 1, args)
         else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber - 3)*4))),T.TEMP (munchExp(arg)))); munchArgs(argNumber+1, args))
-      | munchArgs(argNumber, []) = []
+      | munchArgs(argNumber, []) = (emit(A.OPER{assem="# End (save static link and args on stack)\n", src=[], dst=[], jump=NONE}); [])
 
     and munchExp (T.CONST i) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^Int.toString(i)^"\n",
