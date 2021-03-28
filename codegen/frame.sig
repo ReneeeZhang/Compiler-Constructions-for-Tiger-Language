@@ -13,6 +13,7 @@ sig
 
     val FP : Temp.temp
     val RA : Temp.temp
+	val ZERO : Temp.temp
     val RVs : Temp.temp list
     val argregs : Temp.temp list
     val callersaves : Temp.temp list

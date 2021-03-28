@@ -511,7 +511,7 @@ struct
               a::get_types(t)
             end
 
-        val newLabelIfNeeded = Temp.newlabel()
+        val newLabelIfNeeded = Temp.newFunctionLabel()
         val escapesForFormals = map (fn param => !(#escape param)) params
         val (newLevel, functionLabel, foundInSeq) = case S.look(venv, name) of 
           SOME({access=_,ty=T.ARROW(_, _, lev, lab, foundPos)}) => 
@@ -563,7 +563,7 @@ struct
               a::get_types(t)
             end
     
-    val newLabelIfNeeded = Temp.newlabel()
+    val newLabelIfNeeded = Temp.newFunctionLabel()
     val escapesForFormals = map (fn param => !(#escape param)) params
     val (newLevel, functionLabel, foundInSeq) = case S.look(venv, name) of 
       SOME({access=_,ty=T.ARROW(_, _, lev, lab, foundPos)}) =>
@@ -643,7 +643,7 @@ struct
             in
               a::get_types(t)
             end
-        val functionLabel = Temp.newlabel()
+        val functionLabel = Temp.newFunctionLabel()
         val escapesForFormals = map (fn param => !(#escape param)) params
         val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
         val params' = map transparam params
@@ -668,7 +668,7 @@ struct
               in
                 a::get_types(t)
             end
-          val functionLabel = Temp.newlabel()
+          val functionLabel = Temp.newFunctionLabel()
           val escapesForFormals = map (fn param => !(#escape param)) params
           val newLevel = Trans.newLevel({parent=lev, name=functionLabel, formals=escapesForFormals})
           val params' = map transparam params

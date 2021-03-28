@@ -17,6 +17,7 @@ local structure F = Format
       val labs = ref 0
  in
     fun newlabel() = Symbol.symbol(F.format "L%d" [F.INT(postinc labs)])
+	fun newFunctionLabel() = Symbol.symbol(F.format "tig_L%d" [F.INT(postinc labs)])
     val namedlabel = Symbol.symbol
 end
 
