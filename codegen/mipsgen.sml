@@ -9,7 +9,7 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
     let val ilist = ref (nil: Assem.instr list)
     val calldefs = Frame.RA :: (Frame.argregs @ Frame.callersaves @ Frame.RVs)
     fun emit x= ilist := x :: !ilist
-    fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["print", "flush", "getchar", "ord", "chr", "size", "substring", "concat", "not", "exit"]
+    fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["tig_print", "tig_flush", "tig_getchar", "tig_ord", "tig_chr", "tig_size", "tig_substring", "tig_concat", "tig_not", "tig_exit"]
     fun result(gen) =
 	    let val t = Temp.newtemp()
 	    in
@@ -101,7 +101,9 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       | munchExp (T.BINOP(T.MINUS, T.CONST i, e1)) = 
             result(fn r => emit(A.OPER{assem="SUBI `d0, `s0, "^ 
             Int.toString(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
-      | munchExp (T.NAME l) = result(fn r => ())
+      | munchExp (T.NAME l) = result(fn r => emit(A.OPER{
+        assem="LA `d0, " ^ Symbol.name(l) ^ "\n", src=[], dst=[r], jump=NONE
+      }))
       | munchExp (T.CALL (a, b)) = (munchStm(T.EXP(T.CALL(a,b))); List.nth(Frame.RVs, 0))
       | munchExp (T.BINOP(T.MUL, e1, e2)) = 
             result(fn r => emit(A.OPER{assem="MUL `d0, `s0, `s1\n",
