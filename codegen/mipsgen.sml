@@ -58,7 +58,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
     )
 
     fun getCurrentFrameFormalsCount() = 
-      (if ((#name frame) = Symbol.symbol("tig_main")) then 0 else (List.length(#formals frame) - 1))
+      (if ((#name frame) = Symbol.symbol("tig_main")) then 0 else (!(#numlocals frame)))
     (* 8 $s + 1 $fp *)
     fun saveCalleeSavedRegs() = (
         emit(A.OPER{assem="# Start function-body prologue (save callee-saved regs)\n", src=[], dst=[], jump=NONE});
