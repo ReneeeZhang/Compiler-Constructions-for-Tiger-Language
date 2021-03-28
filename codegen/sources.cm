@@ -7,14 +7,14 @@ frame.sig
 mips_frame.sml
 codegen.sig
 mipsgen.sml
+translate.sig
+translate.sml
 ../ir/convert.sml
 canon.sml
-../ir/translate.sig
 ../ir/printtree.sml
 ../ir/temp.sig
 ../ir/temp.sml
 ../ir/tree.sml
-../ir/translate.sml
 ../ir/semant.sml
 ../ir/env.sig
 ../ir/env.sml
