@@ -9,13 +9,13 @@ codegen.sig
 mipsgen.sml
 translate.sig
 translate.sml
+semant.sml
 ../ir/convert.sml
 canon.sml
 ../ir/printtree.sml
 ../ir/temp.sig
 ../ir/temp.sml
 ../ir/tree.sml
-../ir/semant.sml
 ../ir/env.sig
 ../ir/env.sml
 ../ir/types.sml
