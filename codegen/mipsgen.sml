@@ -5,7 +5,7 @@ structure T = Tree
 structure A = Assem
 structure Symbol = Symbol
 
-fun codegen (frame) (stm: Tree.stm) : Assem.instr list = 
+fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list = 
     let val ilist = ref (nil: Assem.instr list)
     val calldefs = Frame.RA :: (Frame.argregs @ Frame.callersaves @ Frame.RVs)
     fun emit x= ilist := x :: !ilist
@@ -51,12 +51,14 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
       emit(A.OPER{assem="LW $s"^Int.toString(numSs-1)^", "^Int.toString((numSs-1)*4)^"($sp)\n", src=[], dst=[], jump=NONE}); loadSRegs(numSs - 1)
     )
 
+    fun getCurrentFrameFormalsCount() = 
+      (if ((#name frame) = Symbol.symbol("tig_main")) then 0 else (List.length(#formals frame) - 1))
     (* 8 $s + 1 $fp *)
     fun saveCalleeSavedRegs() = (
         emit(A.OPER{assem="# Start function-body prologue (save callee-saved regs)\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="SW $fp, -4($sp)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="SW $fp, -"^Int.toString(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
         emit(A.OPER{assem="MOVE $fp, $sp\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="ADDI $sp, $sp, -36\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="ADDI $sp, $sp, -"^Int.toString(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
         saveSRegs(8);
         emit(A.OPER{assem="# End function-body prologue  (save callee-saved regs)\n\n", src=[], dst=[], jump=NONE})
     )
@@ -64,8 +66,8 @@ fun codegen (frame) (stm: Tree.stm) : Assem.instr list =
     fun loadCalleeSavedRegs() = (
         emit(A.OPER{assem="\n# Start function-body epilogue (load callee-saved regs)\n", src=[], dst=[], jump=NONE});
         loadSRegs(8);
-        emit(A.OPER{assem="ADDI $sp, $sp, 36\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="LW $fp, -4($sp)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="ADDI $sp, $sp, "^Int.toString(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="LW $fp, -"^Int.toString(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
         emit(A.OPER{assem="# End function-body epilogue (load callee-saved regs)\n", src=[], dst=[], jump=NONE})
     )
     fun emitCalleeSavedRegsCodeIfNeeded(labelName) = (
