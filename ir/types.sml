@@ -11,7 +11,7 @@ struct
           | INT
           | STRING
           | ARRAY of ty * unique
-          | ARROW of ty list * ty * Trans.level * Temp.label * int (* function type: arguments * return *) (* TODO: modify later *)
+          | ARROW of ty list * ty * Trans.level * Temp.label * Trans.level * int (* function type: arguments * return * defined level * label * funcion's new level * pos *) (* TODO: modify later *)
 	        | UNIT
           | BOTTOM
 
