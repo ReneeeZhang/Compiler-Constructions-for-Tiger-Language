@@ -77,13 +77,13 @@ struct
       fun get_fp(LEVEL(parent_var, frame_var, unique_var),
                  LEVEL(parent_exp, frame_exp, unique_exp)) = 
           (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
-             | false => T.MEM(get_fp(LEVEL(parent_var,
-               frame_var, unique_var), parent_exp)))
+             | false => T.MEM(T.BINOP(T.MINUS, get_fp(LEVEL(parent_var,
+               frame_var, unique_var), parent_exp), T.CONST 4)))
         | get_fp(ROOT(frame_var, unique_var),
                  LEVEL(parent_exp, frame_exp, unique_exp)) = 
           (case (unique_var=unique_exp) of true => T.TEMP(MF.FP) 
-             | false => T.MEM(get_fp(ROOT(
-               frame_var, unique_var), parent_exp)))
+             | false => T.MEM(T.BINOP(T.MINUS, get_fp(ROOT(
+               frame_var, unique_var), parent_exp), T.CONST 4)))
         | get_fp(ROOT(_,_), ROOT(_,_)) = T.TEMP(MF.FP)
         | get_fp(LEVEL(_,_,_), ROOT(_,_)) = (ErrorMsg.error 0 ("Impossible state"); T.TEMP(MF.FP))
     in
@@ -405,9 +405,8 @@ struct
   fun procEntryExit ({level: level, body: exp}) =
   ((
     case level of
-      LEVEL(parent, (fr as {formals, view_shift, numlocals, name}), unique) => 
-      fragments := (Frame.PROC({body=T.SEQ(T.SEQ(seq(view_shift), T.MOVE(T.TEMP (List.nth(MF.RVs, 0)), unEx(body))), T.JUMP(T.TEMP(MF.RA), [])), frame=fr})::(!fragments))
-    | ROOT((fr as {formals, view_shift, numlocals, name}), unique) => fragments := (Frame.PROC({body=T.SEQ(T.SEQ(seq(view_shift), T.MOVE(T.TEMP (List.nth(MF.RVs, 0)), unEx(body))), T.JUMP(T.TEMP(MF.RA), [])), frame=fr})::(!fragments))
+      LEVEL(parent, frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
+    | ROOT(frame, unique) => fragments := (Frame.PROC({body=T.MOVE(T.TEMP MF.RA, unEx(body)), frame=frame})::(!fragments))
     );
     ()
   )
