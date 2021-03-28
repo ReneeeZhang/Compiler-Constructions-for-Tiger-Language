@@ -18,11 +18,11 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
     fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["tig_print", "tig_flush", "tig_getchar", "tig_ord", "tig_chr", "tig_size", "tig_substring", "tig_concat", "tig_not", "tig_exit"]
     fun pushStackForCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
       else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
-        else emit(A.OPER{assem="ADDI $sp, $sp, -4\n", src=[], dst=[], jump=NONE}))
+        else (if isLibraryCall(funName) then () else emit(A.OPER{assem="ADDI $sp, $sp, -4\n", src=[], dst=[], jump=NONE})))
     
     fun pullStackAfterCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
       else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
-        else emit(A.OPER{assem="ADDI $sp, $sp, 4\n", src=[], dst=[], jump=NONE}))
+        else (if isLibraryCall(funName) then () else emit(A.OPER{assem="ADDI $sp, $sp, 4\n", src=[], dst=[], jump=NONE})))
     
     fun saveTRegs(0) = ()
       | saveTRegs(numTs) = (
@@ -112,9 +112,8 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
         dst=[i],jump=NONE})
       | munchStm(T.MOVE(_, _)) = () (* Won't ever happen *)
       | munchStm(T.JUMP(T.TEMP(t), dest)) = 
-            (emitCalleeSavedRegsLoadCodeIfNeeded(t);
             emit(A.OPER{assem="JR `s0\n\n", src=[t], dst=[],
-            jump=SOME(dest)}))
+            jump=SOME(dest)})
       | munchStm(T.JUMP(_, dest)) = 
             emit(A.OPER{assem="J `j0\n", src=[], dst=[],
             jump=SOME(dest)})
@@ -137,34 +136,26 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
             emit(A.OPER{assem="BNE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
             e2], dst=[], jump=SOME([tlab])})
       | munchStm(T.CJUMP(_, e1, e2, tlab, flab)) = () (* Won't ever happen *)
-      | munchStm(T.LABEL(lab)) = (emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab}); emitCalleeSavedRegsCodeIfNeeded(Symbol.name(lab)))
-      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = (saveCallerSavedRegs(); 
-        emit(A.OPER{assem="# End function-call prologue (save caller-saved regs)\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="# Start (save static link and args on stack)\n", src=[], dst=[], jump=NONE});
+      | munchStm(T.LABEL(lab)) = (emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab}))
+      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = (
         pushStackForCall(Symbol.name fNameLabel, List.length(arg::args));
         let val srcArray = (if isLibraryCall((Symbol.name fNameLabel)) then munchArgs(0, arg::args) else (munchStaticLink(arg); munchArgs(0, args)))
         in
-        (emit(A.OPER{assem="# End (save static link and args on stack)\n", src=[], dst=[], jump=NONE});
         emit(A.OPER{
           assem="JAL `j0\n",
           src=srcArray,
           dst=calldefs,
           jump=SOME([fNameLabel])
-        }))
+        })
         end;
-      emit(A.OPER{assem="# Start function-call epilogue (load caller-saved regs)\n", src=[], dst=[], jump=NONE});
-      pullStackAfterCall(Symbol.name fNameLabel, List.length(arg::args));
-      loadCallerSavedRegs())
-      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), []))) = (saveCallerSavedRegs();
-        emit(A.OPER{assem="# End function-call prologue (save caller-saved regs)\n", src=[], dst=[], jump=NONE});
+      pullStackAfterCall(Symbol.name fNameLabel, List.length(arg::args)))
+      | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), []))) = 
         emit(A.OPER{
           assem="JAL `j0\n",
           src=[], 
           dst=calldefs,
           jump=SOME([fNameLabel])
-        });
-      emit(A.OPER{assem="# Start function-call epilogue (load caller-saved regs)\n\n", src=[], dst=[], jump=NONE});
-      loadCallerSavedRegs()) (* this has to be a library call *)
+        }) (* this has to be a library call *)
       | munchStm(T.EXP(T.CALL(_, _))) =  () (* Won't ever happen *)
       | munchStm(T.EXP(a)) = (munchExp(a); ()) (* No side effects; can ignore *)
        
@@ -175,7 +166,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
       | munchArgs(argNumber, arg::args) = if argNumber < 4 then
           munchArgs(argNumber, [arg]) @ munchArgs(argNumber + 1, args)
         else (munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP Frame.SP, T.CONST ((argNumber - 3)*4))),T.TEMP (munchExp(arg)))); munchArgs(argNumber+1, args))
-      | munchArgs(argNumber, []) = (emit(A.OPER{assem="# End (save static link and args on stack)\n", src=[], dst=[], jump=NONE}); [])
+      | munchArgs(argNumber, []) = []
 
     and munchExp (T.CONST i) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^printInt(i)^"\n",
