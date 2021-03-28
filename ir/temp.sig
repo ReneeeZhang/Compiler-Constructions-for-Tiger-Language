@@ -6,6 +6,7 @@ sig
   val makestring: temp -> string
   type label = Symbol.symbol
   val newlabel : unit -> label
+  val newFunctionLabel : unit -> label
   val namedlabel : string -> label
 end
 
