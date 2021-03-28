@@ -15,7 +15,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
             then Int.toString i
             else "-" ^ Int.toString(~i)
             
-    fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["tig_print", "tig_flush", "tig_getchar", "tig_ord", "tig_chr", "tig_size", "tig_substring", "tig_concat", "tig_not", "tig_exit"]
+    fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["tig_print", "tig_flush", "tig_getchar", "tig_ord", "tig_chr", "tig_size", "tig_substring", "tig_concat", "tig_not", "tig_exit", "tig_initArray", "malloc", "tig_stringEqual"]
     fun pushStackForCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
       else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
         else (if isLibraryCall(funName) then () else emit(A.OPER{assem="ADDI $sp, $sp, -4\n", src=[], dst=[], jump=NONE})))
