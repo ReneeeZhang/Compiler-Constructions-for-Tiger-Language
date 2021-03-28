@@ -9,22 +9,28 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
     let val ilist = ref (nil: Assem.instr list)
     val calldefs = Frame.RA :: (Frame.argregs @ Frame.callersaves @ Frame.RVs)
     fun emit x= ilist := x :: !ilist
+
+      fun printInt i = 
+            if i >= 0 
+            then Int.toString i
+            else "-" ^ Int.toString(~i)
+            
     fun isLibraryCall (funName) = List.exists(fn x => x = funName) ["tig_print", "tig_flush", "tig_getchar", "tig_ord", "tig_chr", "tig_size", "tig_substring", "tig_concat", "tig_not", "tig_exit"]
-    fun pushStackForCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
-      else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+    fun pushStackForCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+      else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
         else emit(A.OPER{assem="ADDI $sp, $sp, -4\n", src=[], dst=[], jump=NONE}))
     
-    fun pullStackAfterCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
-      else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^Int.toString((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+    fun pullStackAfterCall (funName, numArgs) = if isLibraryCall(funName) andalso numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
+      else (if numArgs > 4 then emit(A.OPER{assem="ADDI $sp, $sp, "^printInt((numArgs-4)*4)^"\n", src=[], dst=[], jump=NONE})
         else emit(A.OPER{assem="ADDI $sp, $sp, 4\n", src=[], dst=[], jump=NONE}))
     
     fun saveTRegs(0) = ()
       | saveTRegs(numTs) = (
-      emit(A.OPER{assem="SW $t"^Int.toString(numTs-1)^", "^Int.toString(numTs*4)^"($sp)\n", src=[], dst=[], jump=NONE}); saveTRegs(numTs - 1)
+      emit(A.OPER{assem="SW $t"^printInt(numTs-1)^", "^printInt(numTs*4)^"($sp)\n", src=[], dst=[], jump=NONE}); saveTRegs(numTs - 1)
     )
     fun loadTRegs(0) = ()
       | loadTRegs(numTs) = (
-      emit(A.OPER{assem="LW $t"^Int.toString(numTs-1)^", "^Int.toString(numTs*4)^"($sp)\n", src=[], dst=[], jump=NONE}); loadTRegs(numTs - 1)
+      emit(A.OPER{assem="LW $t"^printInt(numTs-1)^", "^printInt(numTs*4)^"($sp)\n", src=[], dst=[], jump=NONE}); loadTRegs(numTs - 1)
     )
 
     (* 10 $t + 1 $ra *)
@@ -43,12 +49,12 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
 
     fun saveSRegs(0) = ()
       | saveSRegs(numSs) = (
-      emit(A.OPER{assem="SW $s"^Int.toString(numSs-1)^", "^Int.toString((numSs-1)*4)^"($sp)\n", src=[], dst=[], jump=NONE}); saveSRegs(numSs - 1)
+      emit(A.OPER{assem="SW $s"^printInt(numSs-1)^", "^printInt((numSs-1)*4)^"($sp)\n", src=[], dst=[], jump=NONE}); saveSRegs(numSs - 1)
     )
 
     fun loadSRegs(0) = ()
       | loadSRegs(numSs) = (
-      emit(A.OPER{assem="LW $s"^Int.toString(numSs-1)^", "^Int.toString((numSs-1)*4)^"($sp)\n", src=[], dst=[], jump=NONE}); loadSRegs(numSs - 1)
+      emit(A.OPER{assem="LW $s"^printInt(numSs-1)^", "^printInt((numSs-1)*4)^"($sp)\n", src=[], dst=[], jump=NONE}); loadSRegs(numSs - 1)
     )
 
     fun getCurrentFrameFormalsCount() = 
@@ -56,9 +62,9 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
     (* 8 $s + 1 $fp *)
     fun saveCalleeSavedRegs() = (
         emit(A.OPER{assem="# Start function-body prologue (save callee-saved regs)\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="SW $fp, -"^Int.toString(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="SW $fp, -"^printInt(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
         emit(A.OPER{assem="MOVE $fp, $sp\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="ADDI $sp, $sp, -"^Int.toString(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
         saveSRegs(8);
         emit(A.OPER{assem="# End function-body prologue  (save callee-saved regs)\n\n", src=[], dst=[], jump=NONE})
     )
@@ -66,8 +72,8 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
     fun loadCalleeSavedRegs() = (
         emit(A.OPER{assem="\n# Start function-body epilogue (load callee-saved regs)\n", src=[], dst=[], jump=NONE});
         loadSRegs(8);
-        emit(A.OPER{assem="ADDI $sp, $sp, "^Int.toString(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="LW $fp, -"^Int.toString(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="ADDI $sp, $sp, "^printInt(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
+        emit(A.OPER{assem="LW $fp, -"^printInt(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
         emit(A.OPER{assem="# End function-body epilogue (load callee-saved regs)\n", src=[], dst=[], jump=NONE})
     )
     fun emitCalleeSavedRegsCodeIfNeeded(labelName) = (
@@ -83,22 +89,22 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
 	    in
 		gen t; t
 	    end
-
-	fun munchStm(T.SEQ(a,b)) = (munchStm a; munchStm b)
+	
+      fun munchStm(T.SEQ(a,b)) = (munchStm a; munchStm b)
       | munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, T.CONST i, e1)), e2)) = 
-            emit(A.OPER{assem="SW `s1, "^Int.toString(i)^"(`s0)\n", src=[munchExp
+            emit(A.OPER{assem="SW `s1, "^printInt(i)^"(`s0)\n", src=[munchExp
             e1, munchExp e2], dst=[], jump=NONE})
       | munchStm(T.MOVE(T.MEM(T.BINOP(T.PLUS, e1, T.CONST i)), e2)) = 
-            emit(A.OPER{assem="SW `s1, "^Int.toString(i)^"(`s0)\n", src=[munchExp
+            emit(A.OPER{assem="SW `s1, "^printInt(i)^"(`s0)\n", src=[munchExp
             e1, munchExp e2], dst=[], jump=NONE})
       | munchStm(T.MOVE(T.MEM(T.CONST i), e1)) = 
-            emit(A.OPER{assem="SW `s0, 0("^Int.toString(i)^"), \n", src=[munchExp e1],
+            emit(A.OPER{assem="SW `s0, 0("^printInt(i)^"), \n", src=[munchExp e1],
             dst=[], jump=NONE})
       | munchStm(T.MOVE(T.MEM(e1), e2)) = 
             emit(A.OPER{assem="SW `s1, 0(`s0)\n", src=[munchExp e1, munchExp e2],
             dst=[], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, T.CONST j)) = 
-            emit(A.OPER{assem="ADDI `d0, r0, "^Int.toString(j)^"\n", src=[],
+            emit(A.OPER{assem="ADDI `d0, r0, "^printInt(j)^"\n", src=[],
             dst=[i], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, e2)) = 
         if i = Frame.ZERO andalso (munchExp e2) = Frame.ZERO then () else
@@ -172,20 +178,20 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
       | munchArgs(argNumber, []) = (emit(A.OPER{assem="# End (save static link and args on stack)\n", src=[], dst=[], jump=NONE}); [])
 
     and munchExp (T.CONST i) = 
-            result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^Int.toString(i)^"\n",
+            result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^printInt(i)^"\n",
             src=[], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.PLUS, e1, T.CONST i)) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, `s0, "^ 
-            Int.toString(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
+            printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.PLUS, T.CONST i, e1)) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, `s0, "^ 
-            Int.toString(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
+            printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.MINUS, e1, T.CONST i)) = 
             result(fn r => emit(A.OPER{assem="SUBI `d0, `s0, "^ 
-            Int.toString(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
+            printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.MINUS, T.CONST i, e1)) = 
             result(fn r => emit(A.OPER{assem="SUBI `d0, `s0, "^ 
-            Int.toString(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
+            printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.NAME l) = result(fn r => emit(A.OPER{
         assem="LA `d0, " ^ Symbol.name(l) ^ "\n", src=[], dst=[r], jump=NONE
       }))
@@ -206,23 +212,17 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
       | munchExp(T.TEMP t) = t
       | munchExp(T.ESEQ(a, b)) = (munchStm(a); munchExp(b))
       | munchExp(T.MEM(T.BINOP(T.PLUS, e, T.CONST i))) = 
-        result(fn r => emit(A.OPER{assem="LW `d0, " ^ Int.toString(i) ^ "(`s0)\n",
+        result(fn r => emit(A.OPER{assem="LW `d0, " ^ printInt(i) ^ "(`s0)\n",
 				   src=[munchExp e],
 				   dst=[r],
 				   jump=NONE}))
       | munchExp(T.MEM(T.BINOP(T.PLUS, T.CONST i, e))) =
 	munchExp(T.MEM(T.BINOP(T.PLUS, e, T.CONST i)))
       | munchExp(T.MEM(T.BINOP(T.MINUS, e, T.CONST i))) =
-	result(fn r => emit(A.OPER{assem="LW `d0, " ^ Int.toString(~i) ^ "(`s0)\n",
+	result(fn r => emit(A.OPER{assem="LW `d0, " ^ printInt(~i) ^ "(`s0)\n",
 				   src=[munchExp e],
 				   dst=[r],
 				   jump=NONE}))
-      (* This case is the same as munchExp(T.MEM(e)) *)
-      (* | munchExp(T.MEM(T.BINOP(T.MINUS, T.CONST i, e))) = *)
-      (* 	result(fn r => emit(A.OPER{assem="LW `d0, 0(`s0)\n", *)
-      (* 				   src=[munchExp(T.BINOP(T.MINUS, T.CONST i, e))], *)
-      (* 				   dst=[r], *)
-      (* 				   jump=NONE})) *)
       | munchExp(T.MEM(e)) =
 	result(fn r => emit(A.OPER{assem="LW `d0, 0(`s0)\n",
 				   src=[munchExp(e)],

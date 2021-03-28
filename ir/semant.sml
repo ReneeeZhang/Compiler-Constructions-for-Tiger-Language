@@ -527,7 +527,7 @@ struct
 
         val params' = map transparam params
         val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
-        val _::accessList = (#formals currentFrame) (* ditch the static link *)
+        val accessList = (#formals currentFrame) (* ditch the static link *)
         val paramAndAccessComboList = makeParamAccessComboList(params', accessList)
         val typelist = get_types(params)
         fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
@@ -578,7 +578,7 @@ struct
     
     val params' = map transparam params
     val (currentFrame, _) = Trans.getFrameExtractableLevel(newLevel)
-    val _::accessList = (#formals currentFrame) (* ditch the static link *)
+    val accessList = (#formals currentFrame) (* ditch the static link *)
     val paramAndAccessComboList = makeParamAccessComboList(params', accessList)
 		val typelist = get_types(params)
     fun enterparam(({name,ty}, access: MF.access), venv) = S.enter(venv, name,
