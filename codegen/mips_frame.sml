@@ -70,15 +70,18 @@ val wordSize = 4
 val emptyFrame = {formals=([]: access list), view_shift=([]: Tree.stm list), numlocals=ref 0, name=Temp.newlabel()}
 fun newFrame {name=n, formals=fo} = 
     let val curr = ref 0 (* current number of locals *)
-        val access_list =  map (fn (escaped) => if escaped 
-                                                then (curr := !curr + 1; InFrame(!curr * (~4))) 
-                                                else InReg(Temp.newtemp())) fo
-                          
+        val access_list =
+	    let val eff_formals = case fo of
+				      [] => []
+				    | _::restfo => restfo
+	    in
+		map (fn (escaped) => if escaped 
+                                     then (curr := !curr + 1; InFrame(!curr * (~4))) 
+                                     else InReg(Temp.newtemp())) eff_formals
+            end
+		
         val view_shift_insns =
-	    let val actual_al = case access_list of
-				    [] => []
-				  | _::restal => restal (* The first element is static link *)
-		fun aux (al, argregs, num_extra_args) = 
+	    let fun aux (al, argregs, num_extra_args) = 
 		    case (al, argregs) of
                         ([], _) => []
                       | (a::al', reg::argregs') =>
@@ -92,7 +95,7 @@ fun newFrame {name=n, formals=fo} =
 			    Tree.MEM(Tree.BINOP(Tree.PLUS, Tree.TEMP(FP), Tree.CONST(4 * (num_extra_args + 1))))
 			)::aux(al', [], num_extra_args + 1)    
             in
-                Tree.LABEL(n)::aux(actual_al, argregs, 0)
+                Tree.LABEL(n)::aux(access_list, argregs, 0)
             end
     in
         {
