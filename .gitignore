@@ -4,6 +4,10 @@
 *.swp
 *.s
 
+# liveness
+liveness/.cm/
+liveness/runscript.sml
+
 # codegen
 codegen/.cm/
 codegen/runscript.sml
