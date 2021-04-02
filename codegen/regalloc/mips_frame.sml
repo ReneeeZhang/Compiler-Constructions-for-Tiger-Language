@@ -1,7 +1,7 @@
 structure MipsFrame : FRAME = 
 struct
 
-structure TT = Temp.Table
+structure TT = Temp.Map
 
 datatype access = InFrame of int
                 | InReg of Temp.temp
@@ -25,41 +25,41 @@ val extratemp1 = Temp.newtemp() (* No.24 in MIPS *)
 val extratemp2 = Temp.newtemp() (* No.25 in MIPS *)
 val specialregs = [ZERO, AT, SP, GP, extratemp1, extratemp2] (* Add special regs as needed *)                                                     
 
-val tempMap = let val tmap1 = TT.enter(TT.empty, 100, "$fp")
-                  val tmap2 = TT.enter(tmap1, 101, "$ra")
+val tempMap = let val tmap1 = TT.insert(TT.empty, 100, "$fp")
+                  val tmap2 = TT.insert(tmap1, 101, "$ra")
                   (* argregs *)
-                  val tmap3 = TT.enter(tmap2, 102, "$a0")
-                  val tmap4 = TT.enter(tmap3, 103, "$a1")
-                  val tmap5 = TT.enter(tmap4, 104, "$a2")
-                  val tmap6 = TT.enter(tmap5, 105, "$a3")
+                  val tmap3 = TT.insert(tmap2, 102, "$a0")
+                  val tmap4 = TT.insert(tmap3, 103, "$a1")
+                  val tmap5 = TT.insert(tmap4, 104, "$a2")
+                  val tmap6 = TT.insert(tmap5, 105, "$a3")
                   (* rvs *)
-                  val tmap7 = TT.enter(tmap6, 106, "$v0")
-                  val tmap8 = TT.enter(tmap7, 107, "$v1")
+                  val tmap7 = TT.insert(tmap6, 106, "$v0")
+                  val tmap8 = TT.insert(tmap7, 107, "$v1")
                   (* callersaves *)
-                  val tmap9 = TT.enter(tmap8, 108, "$t0")
-                  val tmap10 = TT.enter(tmap9, 109, "$t1")
-                  val tmap11 = TT.enter(tmap10, 110, "$t2")
-                  val tmap12 = TT.enter(tmap11, 111, "$t3")
-                  val tmap13 = TT.enter(tmap12, 112, "$t4")
-                  val tmap14 = TT.enter(tmap13, 113, "$t5")
-                  val tmap15 = TT.enter(tmap14, 114, "$t6")
-                  val tmap16 = TT.enter(tmap15, 115, "$t7")
+                  val tmap9 = TT.insert(tmap8, 108, "$t0")
+                  val tmap10 = TT.insert(tmap9, 109, "$t1")
+                  val tmap11 = TT.insert(tmap10, 110, "$t2")
+                  val tmap12 = TT.insert(tmap11, 111, "$t3")
+                  val tmap13 = TT.insert(tmap12, 112, "$t4")
+                  val tmap14 = TT.insert(tmap13, 113, "$t5")
+                  val tmap15 = TT.insert(tmap14, 114, "$t6")
+                  val tmap16 = TT.insert(tmap15, 115, "$t7")
                   (* calleesaves *)
-                  val tmap17 = TT.enter(tmap16, 116, "$s0")
-                  val tmap18 = TT.enter(tmap17, 117, "$s1")
-                  val tmap19 = TT.enter(tmap18, 118, "$s2")
-                  val tmap20 = TT.enter(tmap19, 119, "$s3")
-                  val tmap21 = TT.enter(tmap20, 120, "$s4")
-                  val tmap22 = TT.enter(tmap21, 121, "$s5")
-                  val tmap23 = TT.enter(tmap22, 122, "$s6")
-                  val tmap24 = TT.enter(tmap23, 123, "$s7")
+                  val tmap17 = TT.insert(tmap16, 116, "$s0")
+                  val tmap18 = TT.insert(tmap17, 117, "$s1")
+                  val tmap19 = TT.insert(tmap18, 118, "$s2")
+                  val tmap20 = TT.insert(tmap19, 119, "$s3")
+                  val tmap21 = TT.insert(tmap20, 120, "$s4")
+                  val tmap22 = TT.insert(tmap21, 121, "$s5")
+                  val tmap23 = TT.insert(tmap22, 122, "$s6")
+                  val tmap24 = TT.insert(tmap23, 123, "$s7")
                   (* special regs *)
-                  val tmap25 = TT.enter(tmap24, 124, "$zero")
-                  val tmap26 = TT.enter(tmap25, 125, "$at")
-                  val tmap27 = TT.enter(tmap26, 126, "$sp")
-                  val tmap28 = TT.enter(tmap27, 127, "$gp")
-                  val tmap29 = TT.enter(tmap28, 128, "$t8")
-                  val tmap30 = TT.enter(tmap29, 129, "$t9")
+                  val tmap25 = TT.insert(tmap24, 124, "$zero")
+                  val tmap26 = TT.insert(tmap25, 125, "$at")
+                  val tmap27 = TT.insert(tmap26, 126, "$sp")
+                  val tmap28 = TT.insert(tmap27, 127, "$gp")
+                  val tmap29 = TT.insert(tmap28, 128, "$t8")
+                  val tmap30 = TT.insert(tmap29, 129, "$t9")
 
                   val tmap_final = tmap30
               in
@@ -120,7 +120,7 @@ fun formals {formals, view_shift, numlocals, name} =
 fun string (lab, s) = (Symbol.name(lab) ^ ": .asciiz \"" ^ s ^ "\"\n")
 
 fun display temp = 
-    case TT.look(tempMap, temp) of
+    case TT.find(tempMap, temp) of
         SOME(regname) => regname
       | NONE => Temp.makestring(temp)
 	     
