@@ -17,7 +17,7 @@ funcgraph.sig
 funcgraph.sml
 
 ../../ir/convert.sml
-../../ir/printtree.sml
+(* ../../ir/printtree.sml *)
 ../../ir/tree.sml
 ../../ir/env.sig
 ../../ir/env.sml

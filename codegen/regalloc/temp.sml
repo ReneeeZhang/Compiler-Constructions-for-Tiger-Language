@@ -1,4 +1,4 @@
-structure Temp : TEMP =
+structure Temp :> TEMP =
 struct
     type temp = int
     val labelCount = ref 0
