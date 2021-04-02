@@ -1,4 +1,4 @@
-structure Temp :> TEMP =
+structure Temp : TEMP =
 struct
     type temp = int
     val labelCount = ref 0
@@ -28,11 +28,13 @@ struct
     fun makestring t = "t" ^ Int.toString t
 		       
     type label = Symbol.symbol
-    
+
+    val compare = Int.compare		           
+		      
     structure TempOrd =
     struct 
       type ord_key = temp
-      val compare = Int.compare (* Might be something wrong here *)
+      val compare = compare
     end
 
     structure Set = SplaySetFn(TempOrd)
@@ -44,6 +46,9 @@ struct
 	in
 	    Symbol.symbol (Format.format "L%d" [Format.INT(!labelCount)])
 	end
+
+    fun newFunctionLabel() = Symbol.symbol(Format.format "tig_L%d" [Format.INT(!labelCount)])
+
     val namedlabel = Symbol.symbol
 
 

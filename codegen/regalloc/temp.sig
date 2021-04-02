@@ -8,6 +8,7 @@ sig
   type label = Symbol.symbol
   val newlabel : unit -> label
   val namedlabel : string -> label
+  val newFunctionLabel : unit -> label
   structure Set : ORD_SET sharing type Set.Key.ord_key = temp
   structure Map : ORD_MAP sharing type Map.Key.ord_key = temp
 end
