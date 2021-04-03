@@ -13,7 +13,7 @@ structure EdgeKey = struct type ord_key = {from:nodeID,to:nodeID}
 		    end
 structure EdgeSet = SplaySetFn(EdgeKey)
 
-type 'a node = (nodeID * 'a * NodeSet.set * NodeSet.set)
+type 'a node = (nodeID * 'a * NodeSet.set * NodeSet.set) (* First set: successors; Second set: predecessors *)
 type 'a graph = 'a node NodeMap.map
 type 'a edge = {from: nodeID, to: nodeID}
 
@@ -21,8 +21,8 @@ type 'a edge = {from: nodeID, to: nodeID}
 exception NoSuchNode of nodeID
 exception NoSuchEdge of nodeID * nodeID
 
-
-val empty = NodeMap.empty
+(* Implementation: adjacent list - a map where key is nodeID and value is 'a node *)
+val empty = NodeMap.empty (* 'a node NodeMap.map *)
 fun getNode(g,nid) = case NodeMap.find(g,nid) of
 			 NONE => raise NoSuchNode(nid)
 		       | SOME x=> x
