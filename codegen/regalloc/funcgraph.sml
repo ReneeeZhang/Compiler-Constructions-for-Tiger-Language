@@ -26,6 +26,11 @@ val empty = NodeMap.empty (* 'a node NodeMap.map *)
 fun getNode(g,nid) = case NodeMap.find(g,nid) of
 			 NONE => raise NoSuchNode(nid)
 		       | SOME x=> x
+
+fun hasNode(g, nid) = case NodeMap.find(g, nid) of
+							NONE => false
+						  | SOME(_) => true
+
 fun addNode(g,nid,d) = NodeMap.insert(g,nid,(nid,d,NodeSet.empty,NodeSet.empty))
 fun addNode'(g,nid,d) = 
     let val n = (nid,d,NodeSet.empty,NodeSet.empty)

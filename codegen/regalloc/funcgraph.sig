@@ -29,6 +29,9 @@ val remove : 'a graph * 'a node -> 'a graph
 (* get a particular node, raises NoSuchNode if not found*)
 val getNode: 'a graph * nodeID -> 'a node
 
+(* Does the graph have the node? *)
+val hasNode: 'a graph * nodeID -> bool
+
 (* pull the info out of the node *)
 val nodeInfo: 'a node -> 'a
 
