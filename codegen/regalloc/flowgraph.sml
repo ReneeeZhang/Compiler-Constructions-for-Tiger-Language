@@ -1,9 +1,26 @@
 structure Flow =
 struct
-    datatype flowgraph = FGRAPH of {control: Graph.graph,
-				    def: Temp.temp list Graph.Table.table,
-				    use: Temp.temp list Graph.Table.table,
-				    ismove: bool Graph.Table.table}
+    structure LabelOrder =
+	struct
+		type ord_key = Temp.label
+		fun compare(k1, k2) = 
+			String.compare(Symbol.name k1, Symbol.name k2)
+	end
+
+	structure InsnStrOrder = 
+	struct
+		type ord_key = string
+		val compare = String.compare
+	end
+
+	structure LabelMap = SplayMapFn(LabelOrder)
+	structure InsnMap = SplayMapFn(InsnStrOrder)
+
+	structure Graph = FuncGraph(LabelOrder)
+	datatype flowgraph = FGRAPH of {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
+									def: Temp.temp list LabelMap.map, (* Granularity: basic block *)
+									use: Temp.temp list LabelMap.map,
+									ismove: bool InsnMap.map} (* Granularity: instruction *)
 
   (* Note:  any "use" within the block is assumed to be BEFORE a "def" 
         of the same variable.  If there is a def(x) followed by use(x)
