@@ -15,11 +15,12 @@ struct
 
 	structure LabelMap = SplayMapFn(LabelOrder)
 	structure InsnMap = SplayMapFn(InsnStrOrder)
+	structure TempSet = Temp.Set  (* SplaySetFn(Temp.TempOrd) *)
 
-	structure Graph = FuncGraph(LabelOrder)
+	structure Graph = FuncGraph(LabelOrder) (* Key: label; Value: Assem.instr list, i.e., basic block *)
 	datatype flowgraph = FGRAPH of {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
-									def: Temp.temp list LabelMap.map, (* Granularity: basic block *)
-									use: Temp.temp list LabelMap.map,
+									def: TempSet.set LabelMap.map, (* Granularity: basic block *)
+									use: TempSet.set LabelMap.map, (* Granularity: basic block *)
 									ismove: bool InsnMap.map} (* Granularity: instruction *)
 
   (* Note:  any "use" within the block is assumed to be BEFORE a "def" 
