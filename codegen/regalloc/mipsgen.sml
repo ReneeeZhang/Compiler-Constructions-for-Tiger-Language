@@ -119,22 +119,22 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
             jump=SOME(dest)})
       | munchStm(T.CJUMP(T.LE, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BLE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
-            e2], dst=[], jump=SOME([tlab])})
+            e2], dst=[], jump=SOME([tlab, flab])})
       | munchStm(T.CJUMP(T.GE, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BGE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
-            e2], dst=[], jump=SOME([tlab])})
+            e2], dst=[], jump=SOME([tlab, flab])})
       | munchStm(T.CJUMP(T.LT, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BLT `s0, `s1, `j0\n", src=[munchExp e1, munchExp
-            e2], dst=[], jump=SOME([tlab])})
+            e2], dst=[], jump=SOME([tlab, flab])})
       | munchStm(T.CJUMP(T.GT, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BGT `s0, `s1, `j0\n", src=[munchExp e1, munchExp
-            e2], dst=[], jump=SOME([tlab])})
+            e2], dst=[], jump=SOME([tlab, flab])})
       | munchStm(T.CJUMP(T.EQ, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BEQ `s0, `s1, `j0\n", src=[munchExp e1, munchExp
-            e2], dst=[], jump=SOME([tlab])})
+            e2], dst=[], jump=SOME([tlab, flab])})
       | munchStm(T.CJUMP(T.NE, e1, e2, tlab, flab)) = 
             emit(A.OPER{assem="BNE `s0, `s1, `j0\n", src=[munchExp e1, munchExp
-            e2], dst=[], jump=SOME([tlab])})
+            e2], dst=[], jump=SOME([tlab, flab])})
       | munchStm(T.CJUMP(_, e1, e2, tlab, flab)) = () (* Won't ever happen *)
       | munchStm(T.LABEL(lab)) = (emit(A.LABEL{assem=Symbol.name(lab)^":\n", lab=lab}))
       | munchStm(T.EXP(T.CALL(T.NAME (fNameLabel), arg::args))) = (
