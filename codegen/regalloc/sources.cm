@@ -16,6 +16,7 @@ temp.sml
 funcgraph.sig
 funcgraph.sml
 flowgraph.sml
+makegraph.sml
 
 ../../ir/convert.sml
 (* ../../ir/printtree.sml *)
