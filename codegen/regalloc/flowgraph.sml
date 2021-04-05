@@ -17,7 +17,7 @@ struct
 	structure InsnMap = SplayMapFn(InsnStrOrder)
 	structure TempSet = Temp.Set  (* SplaySetFn(Temp.TempOrd) *)
 
-	structure Graph = FuncGraph(LabelOrder) (* Key: label; Value: Assem.instr list, i.e., basic block *)
+	structure Graph = FuncGraph(LabelOrder) (* Key: label; Value: Assem.instr list node, i.e., basic block *)
 	datatype flowgraph = FGRAPH of {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
 									def: TempSet.set LabelMap.map, (* Granularity: basic block *)
 									use: TempSet.set LabelMap.map, (* Granularity: basic block *)
