@@ -27,13 +27,13 @@ struct
 	    let fun addNewLine str = str ^ "\n" 
 		fun stringifyInsn(insn, ans) = 
 		    case insn of
-			Assem.OPER({assem, dst, src, jump}) => addNewLine(ans ^ assem)
-		      | Assem.MOVE({assem, dst, src}) => addNewLine(ans ^ assem)
-		      | Assem.LABEL({assem, lab}) => addNewLine(ans ^ assem) (* Won't happen *)
+				Assem.OPER({assem, dst, src, jump}) => ans ^ assem
+		      | Assem.MOVE({assem, dst, src}) => ans ^ assem
+		      | Assem.LABEL({assem, lab}) => ans ^ assem (* Won't happen *)
 		val initStr = addNewLine ("############# " ^ Symbol.name nid ^ " #############")
 		val str = foldl stringifyInsn initStr data
 	    in
-		addNewLine(str)
+			addNewLine(str)
 	    end
 
 					   
