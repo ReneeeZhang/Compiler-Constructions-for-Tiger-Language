@@ -16,9 +16,11 @@ struct
 				   It only adds node when the label that it is handling is not in the graph. 
 				   Otherwise, the node associated with that label has already been set up by handleOper *)
 				let fun handleLabel({assem, lab}, restInsns) = 
-						if not(F.Graph.hasNode(control, lab))
+						if not(F.LabelMap.inDomain(def, lab))
 						then let val updatedControl = F.Graph.addNode(control, lab, [])
-								 val ans' = F.FGRAPH{control=updatedControl, def=def, use=use, ismove=ismove}
+								 val updatedDefMap = F.LabelMap.insert(def, lab, F.TempSet.empty)
+								 val updatedUseMap = F.LabelMap.insert(use, lab, F.TempSet.empty)
+								 val ans' = F.FGRAPH{control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=ismove} (* TODO: Maybe something wrong with ismove*)
 							in
 								generateFlowGraphHelper(restInsns, lab, ans')
 							end
@@ -54,15 +56,24 @@ struct
 						let (* Fetch current use and def sets *)
 							val currUseSet = F.LabelMap.lookup(use, label)
 							val currDefSet = F.LabelMap.lookup(def, label)
+							fun updateBasedOnJump init =
+								case jump of
+									NONE => init
+								  | SOME(jumptoes) => foldl (fn(j, ans) => 	if F.LabelMap.inDomain(def, j)
+																			then ans
+																			else F.LabelMap.insert(ans, j, F.TempSet.empty))
+															init jumptoes
 							(* Update use: fold src, which is a list, to currUseSet.
 								Likewise, eliminate use-after-def *)
 							val updatedUseSet = foldl (fn (x, ans) => if F.TempSet.member(currDefSet, x)
 																	  then ans
 																	  else F.TempSet.add(ans, x)) currUseSet src
-							val updatedUseMap = F.LabelMap.insert(use, label, updatedUseSet)
+							val updatedUseMap' = F.LabelMap.insert(use, label, updatedUseSet)
+							val updatedUseMap = updateBasedOnJump(updatedUseMap')
 							(* Update def: add all from dst to currDefSet *)
 							val updatedDefSet = foldl (fn (x, ans) => F.TempSet.add(ans, x)) currDefSet dst
-							val updatedDefMap = F.LabelMap.insert(def, label, updatedDefSet)
+							val updatedDefMap' = F.LabelMap.insert(def, label, updatedDefSet)
+							val updatedDefMap = updateBasedOnJump(updatedDefMap')
 							(* Update ismove: set to false *)
 							val updatedIsMove = F.InsnMap.insert(ismove, assem, false)
 							(* Update control graph: add this instruction to the node, which is a basic block *)
@@ -72,20 +83,18 @@ struct
 							denotes the "to" of an edge *)
 							val updatedControl = 	case jump of
 														NONE => updatedControl'
-													| SOME(jumptoes) => 
-														let fun buildEdges(jumptoes, ans) = (* Tail recursion *)
-															case jumptoes of
-																[] => ans
-															| jumpto::jumptoes' => 
-																if F.Graph.hasNode(updatedControl', jumpto)
-																then buildEdges(jumptoes', F.Graph.addEdge(ans, {from=label, to=jumpto}))
-																else 	let val ans' = F.Graph.addNode(ans, jumpto, [])
-																		in
-																			buildEdges(jumptoes', F.Graph.addEdge(ans', {from=label, to=jumpto}))
-																		end
+													  | SOME(jumptoes) => 
+													  	let fun buildEdge(j, ans) = 
+														  	if F.LabelMap.inDomain(def, j)
+															then F.Graph.addEdge(ans, {from=label, to=j})
+															else let val ans' = F.Graph.addNode(ans, j, [])
+																 in
+																 	F.Graph.addEdge(ans', {from=label, to=j})
+																 end
 														in
-															buildEdges(jumptoes, updatedControl')
+															foldl buildEdge updatedControl' jumptoes
 														end
+														
 							val ans' = F.FGRAPH({control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=updatedIsMove})
 						in
 							generateFlowGraphHelper(restInsns, label, ans')
