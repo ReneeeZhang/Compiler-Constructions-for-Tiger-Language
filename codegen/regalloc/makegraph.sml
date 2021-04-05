@@ -1,6 +1,6 @@
 structure MakeGraph :> 
 sig
-  	val instrs2graph : Assem.instr list -> Flow.flowgraph (* * Flow.Graph.node list *)
+  	val instrs2graph : Assem.instr list -> Flow.flowgraph * ((Assem.instr list) Flow.Graph.node) list
 end =
 struct
 	structure F = Flow
@@ -101,7 +101,10 @@ struct
 				end (* End generateGraphHelper *)
 
 			fun generateFlowGraph(insns, (ans as F.FGRAPH({control, def, use, ismove}))) =
-				generateFlowGraphHelper(insns, Symbol.symbol(""), ans)
+				let val (fgraph as F.FGRAPH({control, def, use, ismove})) = generateFlowGraphHelper(insns, Symbol.symbol(""), ans)
+				in
+					(fgraph, F.Graph.nodes(control))
+				end
 
 		in
 			generateFlowGraph(insns, F.FGRAPH({control=initControl, def=initDef, use=initUse, ismove=initIsmove}))
