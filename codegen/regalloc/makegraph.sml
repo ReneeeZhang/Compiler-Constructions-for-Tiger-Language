@@ -11,11 +11,41 @@ struct
 			val initUse = F.LabelMap.empty
 			val initIsmove = F.InsnMap.empty
 			fun generateFlowGraphHelper(insns, label, (ans as F.FGRAPH({control, def, use, ismove}))) = 
-				(* Because each OPER with a non-NONE jump field is responsible for setting up edges,
-				   handleLabel never adds edges. 
-				   It only adds node when the label that it is handling is not in the graph. 
-				   Otherwise, the node associated with that label has already been set up by handleOper *)
-				let fun handleLabel({assem, lab}, restInsns) = 
+					(*  addFallThruEdge is to deal with the removal of jump op after linearization. For instancs:
+						...
+						L7:
+						ADDI t133, t130, 1
+						ADD t130, t133, r0
+						L8:
+						ADDI t134, r0, 12
+						BEQ t130, t134, L5
+						...
+						L7 block does not have a jump at the end so that no jump field can be used to build edges. 
+						To address it, we have to detect such cases and add an edge from L7 to L8 *)
+				let fun addFallThruEdge(currInsn, restInsns, baseControl) = 
+						let fun add(restInsns, baseControl) = 
+								case restInsns of
+									A.LABEL({assem, lab})::_ => if F.LabelMap.inDomain(def, lab)
+																then F.Graph.addEdge(baseControl, {from=label, to=lab})
+																else let val updatedControl = F.Graph.addNode(baseControl, lab, [])
+																	in
+																		F.Graph.addEdge(updatedControl, {from=label, to=lab})
+																	end
+						  		  | _ => baseControl
+						in
+							case currInsn of
+							  	A.OPER({assem, dst, src, jump}) => (case jump of
+																		SOME(_) => baseControl
+																	  | NONE => add(restInsns, baseControl))
+							  | A.LABEL(_) => baseControl
+							  | A.MOVE(_) => add(restInsns, baseControl)
+						end
+						
+					(*  Because each OPER with a non-NONE jump field is responsible for setting up edges,
+						handleLabel never adds edges. 
+						It only adds node when the label that it is handling is not in the graph. 
+						Otherwise, the node associated with that label has already been set up by handleOper *)
+					fun handleLabel({assem, lab}, restInsns) = 
 						if not(F.LabelMap.inDomain(def, lab))
 						then let val updatedControl = F.Graph.addNode(control, lab, [])
 								 val updatedDefMap = F.LabelMap.insert(def, lab, F.TempSet.empty)
@@ -44,9 +74,10 @@ struct
 								val updatedIsMove = F.InsnMap.insert(ismove, assem, true)
 								(* Update control graph: add this instruction to the node if dst <> src *)
 								val l = F.Graph.nodeInfo(F.Graph.getNode(control, label))
-								val updatedControl = 	if dst = src (* Delete this move if dst and src are the same *)
+								val updatedControl' = 	if dst = src (* Delete this move if dst and src are the same *)
 														then control
 														else F.Graph.changeNodeData(control, label, l@[currInsn])
+								val updatedControl = addFallThruEdge(currInsn, restInsns, updatedControl')
 								val ans' = F.FGRAPH({control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=updatedIsMove})
 							in
 								generateFlowGraphHelper(restInsns, label, ans')
@@ -78,7 +109,8 @@ struct
 							val updatedIsMove = F.InsnMap.insert(ismove, assem, false)
 							(* Update control graph: add this instruction to the node, which is a basic block *)
 							val l = F.Graph.nodeInfo(F.Graph.getNode(control, label))
-							val updatedControl' = F.Graph.changeNodeData(control, label, l@[currInsn])
+							val updatedControl'' = F.Graph.changeNodeData(control, label, l@[currInsn])
+							val updatedControl' = addFallThruEdge(currInsn, restInsns, updatedControl'')
 							(* Build up edges based on jump. Because of this jump list, handleOper is responsible for adding edges since jump
 							denotes the "to" of an edge *)
 							val updatedControl = 	case jump of
