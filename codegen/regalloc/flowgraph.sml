@@ -23,6 +23,22 @@ struct
 									use: TempSet.set LabelMap.map, (* Granularity: basic block *)
 									ismove: bool InsnMap.map} (* Granularity: instruction *)
 
+	fun stringifyNodeData(nid, data) = 
+	    let fun addNewLine str = str ^ "\n" 
+		fun stringifyInsn(insn, ans) = 
+		    case insn of
+			Assem.OPER({assem, dst, src, jump}) => addNewLine(ans ^ assem)
+		      | Assem.MOVE({assem, dst, src}) => addNewLine(ans ^ assem)
+		      | Assem.LABEL({assem, lab}) => addNewLine(ans ^ assem) (* Won't happen *)
+		val initStr = addNewLine ("############# " ^ Symbol.name nid ^ " #############")
+		val str = foldl stringifyInsn initStr data
+	    in
+		addNewLine(str)
+	    end
+
+					   
+	val printControlGraph = Graph.printGraph stringifyNodeData
+
   (* Note:  any "use" within the block is assumed to be BEFORE a "def" 
         of the same variable.  If there is a def(x) followed by use(x)
        in the same block, do not mention the use in this data structure,
