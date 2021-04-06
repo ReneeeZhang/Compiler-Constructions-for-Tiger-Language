@@ -19,25 +19,32 @@ struct
 
 	structure Graph = FuncGraph(LabelOrder) (* Key: label; Value: Assem.instr list node, i.e., basic block *)
 	datatype flowgraph = FGRAPH of {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
-									def: TempSet.set LabelMap.map, (* Granularity: basic block *)
-									use: TempSet.set LabelMap.map, (* Granularity: basic block *)
+									def: TempSet.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
+									use: TempSet.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
 									ismove: bool InsnMap.map} (* Granularity: instruction *)
 
-	fun stringifyNodeData(nid, data) = 
+	fun stringifyNodeData(nid, data) = (* data here is Assem.instr list *)
 	    let fun addNewLine str = str ^ "\n" 
-		fun stringifyInsn(insn, ans) = 
-		    case insn of
-				Assem.OPER({assem, dst, src, jump}) => ans ^ assem
-		      | Assem.MOVE({assem, dst, src}) => ans ^ assem
-		      | Assem.LABEL({assem, lab}) => ans ^ assem (* Won't happen *)
-		val initStr = addNewLine ("############# " ^ Symbol.name nid ^ " #############")
-		val str = foldl stringifyInsn initStr data
-	    in
+			val fmt = Assem.format(MipsFrame.display)
+			val initStr = addNewLine ("############# " ^ Symbol.name nid ^ " #############")
+			val str = foldl (fn (i, ans) => ans ^ (fmt i)) initStr data
+		in 
 			addNewLine(str)
-	    end
+		end
 
-					   
+	(* For Debugging *)
 	val printControlGraph = Graph.printGraph stringifyNodeData
+
+	(* print def or use *)
+	(* fun printLabelMap m =
+
+
+	fun printLabelMapWithKey(m, k) =
+		let val s = LabelMap.lookup(m, k) (* get the set s under key k *)
+			fun println x = print(x ^ "\n")
+		in
+			TempSet.app ((println o MF.display) t) s
+		end *)
 
   (* Note:  any "use" within the block is assumed to be BEFORE a "def" 
         of the same variable.  If there is a def(x) followed by use(x)
