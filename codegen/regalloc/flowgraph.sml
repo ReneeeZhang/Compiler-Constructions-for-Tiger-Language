@@ -35,16 +35,22 @@ struct
 	(* For Debugging *)
 	val printControlGraph = Graph.printGraph stringifyNodeData
 
-	(* print def or use *)
-	(* fun printLabelMap m =
+	fun println x = print(x ^ "\n")
 
-
-	fun printLabelMapWithKey(m, k) =
+	fun printLabelMapWithKey m k = (* m: LabelMap, k: label *)
 		let val s = LabelMap.lookup(m, k) (* get the set s under key k *)
-			fun println x = print(x ^ "\n")
+			val _ = println("Block: " ^ Symbol.name k)
 		in
-			TempSet.app ((println o MF.display) t) s
-		end *)
+			TempSet.app (println o MipsFrame.display) s
+		end
+
+	(* print def or use *)
+	fun printLabelMap(m, description) =
+		let val _ = println(description ^ ": ")
+		in 
+			List.app (printLabelMapWithKey m) (LabelMap.listKeys(m))
+		end
+
 
   (* Note:  any "use" within the block is assumed to be BEFORE a "def" 
         of the same variable.  If there is a def(x) followed by use(x)

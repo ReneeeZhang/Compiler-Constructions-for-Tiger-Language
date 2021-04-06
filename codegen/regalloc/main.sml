@@ -15,6 +15,10 @@ fun emitproc out (MF.PROC{body,frame}) =
 	    val instrs =   List.concat(map (MipsGen.codegen frame) stms') 
         val (Flow.FGRAPH({control, def, use, ismove}), _) = MakeGraph.instrs2graph(instrs)
         val () = Flow.printControlGraph control
+        val _ = print("----------------------------------------------\n")
+        val _ = Flow.printLabelMap(def, "DEF")
+        val _ = print("**********************************************\n")
+        val _ = Flow.printLabelMap(use, "USE")
             (* val _ = map (fn (x) => print(case x of
 					     Assem.LABEL({assem, lab}) => "label " ^ assem
 					   | Assem.MOVE({assem, dst, src}) => assem
