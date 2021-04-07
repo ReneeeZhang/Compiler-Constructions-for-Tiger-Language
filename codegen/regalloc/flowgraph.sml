@@ -15,7 +15,6 @@ struct
 
 	structure LabelMap = SplayMapFn(LabelOrder)
 	structure InsnMap = SplayMapFn(InsnStrOrder)
-	(*structure TempSet = Temp.Set*)  (* SplaySetFn(Temp.TempOrd) *)
 
 	structure Graph = FuncGraph(LabelOrder) (* Key: label; Value: Assem.instr list node, i.e., basic block *)
 	type flowgraph = {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
