@@ -48,8 +48,8 @@ struct
 					fun handleLabel({assem, lab}, restInsns) = 
 						if not(F.LabelMap.inDomain(def, lab))
 						then let val updatedControl = F.Graph.addNode(control, lab, [])
-								 val updatedDefMap = F.LabelMap.insert(def, lab, F.TempSet.empty)
-								 val updatedUseMap = F.LabelMap.insert(use, lab, F.TempSet.empty)
+								 val updatedDefMap = F.LabelMap.insert(def, lab, Temp.Set.empty)
+								 val updatedUseMap = F.LabelMap.insert(use, lab, Temp.Set.empty)
 								 val ans' = F.FGRAPH{control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=ismove} (* TODO: Maybe something wrong with ismove*)
 							in
 								generateFlowGraphHelper(restInsns, lab, ans')
@@ -65,11 +65,11 @@ struct
 								val currDefSet = F.LabelMap.lookup(def, label)
 								(* Update use: if a use appears after a def to the same variable(temp), ignore it.
 								Note: use currDefSet *)
-								val updatedUseMap = if F.TempSet.member(currDefSet, src)
+								val updatedUseMap = if Temp.Set.member(currDefSet, src)
 													then use 
-													else F.LabelMap.insert(use, label, F.TempSet.add(currUseSet, src))
+													else F.LabelMap.insert(use, label, Temp.Set.add(currUseSet, src))
 								(* Update def: directly add *)
-								val updatedDefMap = F.LabelMap.insert(def, label, F.TempSet.add(currDefSet, dst))
+								val updatedDefMap = F.LabelMap.insert(def, label, Temp.Set.add(currDefSet, dst))
 								(* Update ismove: set to true *)
 								val updatedIsMove = F.InsnMap.insert(ismove, assem, true)
 								(* Update control graph: add this instruction to the node if dst <> src *)
@@ -92,17 +92,17 @@ struct
 									NONE => init
 								  | SOME(jumptoes) => foldl (fn(j, ans) => 	if F.LabelMap.inDomain(def, j)
 																			then ans
-																			else F.LabelMap.insert(ans, j, F.TempSet.empty))
+																			else F.LabelMap.insert(ans, j, Temp.Set.empty))
 															init jumptoes
 							(* Update use: fold src, which is a list, to currUseSet.
 								Likewise, eliminate use-after-def *)
-							val updatedUseSet = foldl (fn (x, ans) => if F.TempSet.member(currDefSet, x)
+							val updatedUseSet = foldl (fn (x, ans) => if Temp.Set.member(currDefSet, x)
 																	  then ans
-																	  else F.TempSet.add(ans, x)) currUseSet src
+																	  else Temp.Set.add(ans, x)) currUseSet src
 							val updatedUseMap' = F.LabelMap.insert(use, label, updatedUseSet)
 							val updatedUseMap = updateBasedOnJump(updatedUseMap')
 							(* Update def: add all from dst to currDefSet *)
-							val updatedDefSet = foldl (fn (x, ans) => F.TempSet.add(ans, x)) currDefSet dst
+							val updatedDefSet = foldl (fn (x, ans) => Temp.Set.add(ans, x)) currDefSet dst
 							val updatedDefMap' = F.LabelMap.insert(def, label, updatedDefSet)
 							val updatedDefMap = updateBasedOnJump(updatedDefMap')
 							(* Update ismove: set to false *)

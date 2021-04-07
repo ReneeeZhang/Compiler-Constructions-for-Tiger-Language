@@ -15,12 +15,12 @@ struct
 
 	structure LabelMap = SplayMapFn(LabelOrder)
 	structure InsnMap = SplayMapFn(InsnStrOrder)
-	structure TempSet = Temp.Set  (* SplaySetFn(Temp.TempOrd) *)
+	(*structure TempSet = Temp.Set*)  (* SplaySetFn(Temp.TempOrd) *)
 
 	structure Graph = FuncGraph(LabelOrder) (* Key: label; Value: Assem.instr list node, i.e., basic block *)
 	datatype flowgraph = FGRAPH of {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
-									def: TempSet.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
-									use: TempSet.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
+									def: Temp.Set.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
+									use: Temp.Set.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
 									ismove: bool InsnMap.map} (* Granularity: instruction *)
 
 	fun stringifyNodeData(nid, data) = (* data here is Assem.instr list *)
@@ -41,7 +41,7 @@ struct
 		let val s = LabelMap.lookup(m, k) (* get the set s under key k *)
 			val _ = println("Block: " ^ Symbol.name k)
 		in
-			TempSet.app (println o MipsFrame.display) s
+			Temp.Set.app (println o MipsFrame.display) s
 		end
 
 	(* print def or use *)
