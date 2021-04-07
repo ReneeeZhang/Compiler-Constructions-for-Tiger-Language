@@ -3,7 +3,7 @@ sig
   eqtype temp
   val reset : unit -> unit
   val newtemp : unit -> temp
-  val compare : temp * temp -> order
+  structure TempOrd : ORD_KEY sharing type TempOrd.ord_key = temp
   val makestring: temp -> string
   type label = Symbol.symbol
   val newlabel : unit -> label
