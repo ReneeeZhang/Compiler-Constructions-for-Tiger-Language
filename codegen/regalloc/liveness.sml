@@ -19,13 +19,17 @@ struct
             val allLabels = F.LabelMap.listKeys(def)
             fun getLiveoutOfNode l = F.LabelMap.lookup(livenessInfo, l)
             fun getDefofNode l = F.LabelMap.lookup(def, l)
+
+            (*  Update the interference graph by a label l, which indicates a node the updating is working on.
+                This function is used in fold *)
             fun updateByNode(l, baseig) = 
                 let val initLiv = getLiveoutOfNode l
                     (* val initDefset = getDefofNode l *)
                     val insns = F.Graph.nodeInfo(F.Graph.getNode(control, l)) (* Contains dst as a list of def temps *)
                     val revInsns = List.rev insns
 
-                    (* Build edges between elements in def list given by insn and in liv *)
+                    (*  Build edges between elements in def list given by insn and elements in liv
+                        The same element in both def list and liv will be handled properly by IGraph.doubleEdge *)
                     fun addInterferenceEdgesPerInsn(baseig, liv, insn) =
                             (* Add edges between a def temp d to every live temp in the liv set, forming a new igraph based on ig *)
                         let fun addInterferenceEdgeFromSingleDefTemp(d, ig) =
