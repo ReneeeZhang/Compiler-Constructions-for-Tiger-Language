@@ -17,6 +17,7 @@ funcgraph.sig
 funcgraph.sml
 flowgraph.sml
 makegraph.sml
+liveness.sml
 
 ../../ir/convert.sml
 (* ../../ir/printtree.sml *)
