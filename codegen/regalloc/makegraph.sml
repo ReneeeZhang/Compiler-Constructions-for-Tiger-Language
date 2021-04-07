@@ -1,6 +1,6 @@
 structure MakeGraph :> 
 sig
-  	val instrs2graph : Assem.instr list -> Flow.flowgraph * ((Assem.instr list) Flow.Graph.node) list
+  	val instrs2graph : Assem.instr list -> Flow.flowgraph * ((Assem.instr list) Flow.Graph.node) list (* TODO: The second part of the return value seems redundant *)
 end =
 struct
 	structure F = Flow
