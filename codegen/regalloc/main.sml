@@ -13,7 +13,7 @@ fun emitproc out (MF.PROC{body,frame}) =
 	(*         val _ = app (fn s => Printtree.printtree(out,s)) stms; *)
         val stms' = Canon.traceSchedule(Canon.basicBlocks stms)
 	    val instrs =   List.concat(map (MipsGen.codegen frame) stms') 
-        val (Flow.FGRAPH({control, def, use, ismove}), _) = MakeGraph.instrs2graph(instrs)
+        val ({control, def, use, ismove}, _) = MakeGraph.instrs2graph(instrs)
         val () = Flow.printControlGraph control
         val _ = print("----------------------------------------------\n")
         val _ = Flow.printLabelMap(def, "DEF")

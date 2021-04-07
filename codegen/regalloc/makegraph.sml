@@ -10,7 +10,7 @@ struct
 			val initDef = F.LabelMap.empty
 			val initUse = F.LabelMap.empty
 			val initIsmove = F.InsnMap.empty
-			fun generateFlowGraphHelper(insns, label, (ans as F.FGRAPH({control, def, use, ismove}))) = 
+			fun generateFlowGraphHelper(insns, label, (ans as {control, def, use, ismove})) = 
 					(*  addFallThruEdge is to deal with the removal of jump op after linearization. For instancs:
 						...
 						L7:
@@ -50,7 +50,7 @@ struct
 						then let val updatedControl = F.Graph.addNode(control, lab, [])
 								 val updatedDefMap = F.LabelMap.insert(def, lab, Temp.Set.empty)
 								 val updatedUseMap = F.LabelMap.insert(use, lab, Temp.Set.empty)
-								 val ans' = F.FGRAPH{control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=ismove} (* TODO: Maybe something wrong with ismove*)
+								 val ans' = {control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=ismove} (* TODO: Maybe something wrong with ismove*)
 							in
 								generateFlowGraphHelper(restInsns, lab, ans')
 							end
@@ -78,7 +78,7 @@ struct
 														then control
 														else F.Graph.changeNodeData(control, label, l@[currInsn])
 								val updatedControl = addFallThruEdge(currInsn, restInsns, updatedControl')
-								val ans' = F.FGRAPH({control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=updatedIsMove})
+								val ans' = {control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=updatedIsMove}
 							in
 								generateFlowGraphHelper(restInsns, label, ans')
 							end (* End handleMove's else *)
@@ -127,7 +127,7 @@ struct
 															foldl buildEdge updatedControl' jumptoes
 														end
 														
-							val ans' = F.FGRAPH({control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=updatedIsMove})
+							val ans' = {control=updatedControl, def=updatedDefMap, use=updatedUseMap, ismove=updatedIsMove}
 						in
 							generateFlowGraphHelper(restInsns, label, ans')
 						end (* End handleOper *)
@@ -141,14 +141,14 @@ struct
 										| A.OPER(oper) => handleOper(oper, insn, insns')
 				end (* End generateGraphHelper *)
 
-			fun generateFlowGraph(insns, (ans as F.FGRAPH({control, def, use, ismove}))) =
-				let val (fgraph as F.FGRAPH({control, def, use, ismove})) = generateFlowGraphHelper(insns, Symbol.symbol(""), ans)
+			fun generateFlowGraph(insns, (ans as {control, def, use, ismove})) =
+				let val (fgraph as {control, def, use, ismove}) = generateFlowGraphHelper(insns, Symbol.symbol(""), ans)
 				in
 					(fgraph, F.Graph.nodes(control))
 				end
 
 		in
-			generateFlowGraph(insns, F.FGRAPH({control=initControl, def=initDef, use=initUse, ismove=initIsmove}))
+			generateFlowGraph(insns, {control=initControl, def=initDef, use=initUse, ismove=initIsmove})
 		end (* End instr2graph *)
 									  	
 end

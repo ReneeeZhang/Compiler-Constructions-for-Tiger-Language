@@ -18,10 +18,10 @@ struct
 	(*structure TempSet = Temp.Set*)  (* SplaySetFn(Temp.TempOrd) *)
 
 	structure Graph = FuncGraph(LabelOrder) (* Key: label; Value: Assem.instr list node, i.e., basic block *)
-	datatype flowgraph = FGRAPH of {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
-									def: Temp.Set.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
-									use: Temp.Set.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
-									ismove: bool InsnMap.map} (* Granularity: instruction *)
+	type flowgraph = {control: Assem.instr list Graph.graph, (* a list of Assem.instr forms a basic block *)
+					def: Temp.Set.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
+					use: Temp.Set.set LabelMap.map, (* Granularity: basic block. Key: label, value: set *)
+					ismove: bool InsnMap.map} (* Granularity: instruction *)
 
 	fun stringifyNodeData(nid, data) = (* data here is Assem.instr list *)
 	    let fun addNewLine str = str ^ "\n" 
