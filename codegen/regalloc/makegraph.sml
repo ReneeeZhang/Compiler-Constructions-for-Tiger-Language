@@ -1,6 +1,6 @@
 structure MakeGraph :> 
 sig
-  	val instrs2graph : Assem.instr list -> Flow.flowgraph * ((Assem.instr list) Flow.Graph.node) list (* TODO: The second part of the return value seems redundant *)
+  	val instrs2graph : Assem.instr list -> Flow.flowgraph
 end =
 struct
 	structure F = Flow
@@ -141,11 +141,12 @@ struct
 										| A.OPER(oper) => handleOper(oper, insn, insns')
 				end (* End generateGraphHelper *)
 
-			fun generateFlowGraph(insns, (ans as {control, def, use, ismove})) =
-				let val (fgraph as {control, def, use, ismove}) = generateFlowGraphHelper(insns, Symbol.symbol(""), ans)
+			fun generateFlowGraph(insns, ans) =
+				generateFlowGraphHelper(insns, Symbol.symbol(""), ans)
+				(* let val (fgraph as {control, def, use, ismove}) = generateFlowGraphHelper(insns, Symbol.symbol(""), ans)
 				in
 					(fgraph, F.Graph.nodes(control))
-				end
+				end *)
 
 		in
 			generateFlowGraph(insns, {control=initControl, def=initDef, use=initUse, ismove=initIsmove})
