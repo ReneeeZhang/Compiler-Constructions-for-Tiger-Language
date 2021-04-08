@@ -52,7 +52,7 @@ struct
                         in
                             case insn of
                                 A.OPER{assem, dst, src, jump} => {graph=(foldl addInterferenceEdgeFromSingleDefTemp baseig dst), moves=m}
-                              | A.MOVE{assem, dst, src} => {graph=baseig, moves=(dst, src)::m}
+                              | A.MOVE{assem, dst, src} => {graph=addInterferenceEdgeFromSingleDefTemp(dst, baseig), moves=(dst, src)::m}
                               | A.LABEL(_) => {graph=baseig, moves=m} (* Won't happen *)
                         end (* End addInterferenceEdges *)
 
