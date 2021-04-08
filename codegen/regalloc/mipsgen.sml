@@ -107,9 +107,12 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
             emit(A.OPER{assem="ADDI `d0, r0, "^printInt(j)^"\n", src=[],
             dst=[i], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, e2)) = 
-        if i = Frame.ZERO andalso (munchExp e2) = Frame.ZERO then () else
-        emit(A.OPER{assem="ADD `d0, `s0, r0\n", src=[munchExp e2],
-        dst=[i],jump=NONE})
+        let val e2' = munchExp e2
+        in
+            if i = Frame.ZERO andalso (e2') = Frame.ZERO then () else
+            emit(A.OPER{assem="ADD `d0, `s0, r0\n", src=[e2'],
+            dst=[i],jump=NONE})
+        end
       | munchStm(T.MOVE(_, _)) = () (* Won't ever happen *)
       | munchStm(T.JUMP(T.TEMP(t), dest)) = 
             emit(A.OPER{assem="JR `s0\n\n", src=[t], dst=[],
