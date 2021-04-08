@@ -171,6 +171,12 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
     and munchExp (T.CONST i) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^printInt(i)^"\n",
             src=[], dst=[r], jump=NONE}))
+      | munchExp (T.BINOP(T.PLUS, e1, T.CONST 0)) = 
+            result(fn r => emit(A.OPER{assem="MOVE `d0, `s0 \n",
+            src=[munchExp e1], dst=[r], jump=NONE}))
+      | munchExp (T.BINOP(T.PLUS, T.CONST 0, e1)) = 
+            result(fn r => emit(A.OPER{assem="MOVE `d0, `s0 \n",
+            src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.PLUS, e1, T.CONST i)) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, `s0, "^ 
             printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
