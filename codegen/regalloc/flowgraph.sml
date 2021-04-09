@@ -38,7 +38,7 @@ struct
 
 	fun printLabelMapWithKey m k = (* m: LabelMap, k: label *)
 		let val s = LabelMap.lookup(m, k) (* get the set s under key k *)
-			val _ = println("Block: " ^ Symbol.name k)
+			val _ = println("Block (printLabelMapWithKey): " ^ Symbol.name k)
 		in
 			Temp.Set.app (println o MipsFrame.display) s
 		end

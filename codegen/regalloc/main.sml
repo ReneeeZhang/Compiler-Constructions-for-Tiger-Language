@@ -2,6 +2,7 @@ structure Main = struct
 
 structure Tr = Translate
 structure MF = MipsFrame
+structure L = Liveness
 (* structure R = RegAlloc *)
 
 fun getsome (SOME x) = x
@@ -19,7 +20,10 @@ fun emitproc out (MF.PROC{body,frame}) =
         val _ = Flow.printLabelMap(def, "DEF")
         val _ = print("**********************************************\n")
         val _ = Flow.printLabelMap(use, "USE")
-            (* val _ = map (fn (x) => print(case x of
+		val _ = print("==============================================\n")
+		val _ = Flow.printLabelMap(L.calculateLiveness(control, def, use), "LIVENESS")
+            (* val _
+			 = map (fn (x) => print(case x of
 					     Assem.LABEL({assem, lab}) => "label " ^ assem
 					   | Assem.MOVE({assem, dst, src}) => assem
 					   | Assem.OPER({assem, dst, src, jump}) => assem)) instrs *)

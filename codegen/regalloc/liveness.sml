@@ -6,6 +6,7 @@ struct
 
     type liveMap = T.Set.set F.LabelMap.map
 	val updatedLivenessInLastIteration = ref true
+	val blocksSeenInThisIteration: Flow.LabelMap.Key.ord_key list ref = ref []
 
 	fun makeEmptyLiveMap(labelMap) = 
 		let
@@ -16,9 +17,10 @@ struct
 	
 	fun getLiveInTempsForBlock(control, liveness, blockLab, use, def) =
 		let
+			(* val _ = print("in getLiveInTempsForBlock\n") *)
 			val blockUses = F.LabelMap.lookup(use, blockLab)
 			val blockDefs = F.LabelMap.lookup(def, blockLab)
-			val liveOuts = getLiveOutTempsForBlock(control, liveness, blockLab, use, def)
+			val liveOuts = if (List.exists (fn (x) => x = blockLab) (!blocksSeenInThisIteration)) then F.LabelMap.lookup(liveness, blockLab) else getLiveOutTempsForBlock(control, liveness, blockLab, use, def)
 			val outMinusDefs = T.Set.difference(liveOuts, blockDefs)
 			val liveIns = T.Set.union(blockUses, outMinusDefs)
 		in
@@ -27,22 +29,25 @@ struct
 		
 	and getLiveOutTempsForBlock(control, liveness, blockLab, use, def) = 
 		let
+			(* val _ = print("in getLiveOutTempsForBlock\n") *)
 			val blockNode = F.Graph.getNode(control, blockLab)
 			val succs = F.Graph.succs(blockNode) (* Returns Temp.Label list *)
-
+			val _ = if (List.exists (fn (x) => x = blockLab) (!blocksSeenInThisIteration)) then () else blocksSeenInThisIteration := blockLab::(!blocksSeenInThisIteration)
+			(* val _ = print("succs length " ^ Int.toString(List.length(succs)) ^ "\n") *)
 			(* This may not be required *)
 			val succNodes = foldl (fn (newSucc, nodes) => F.Graph.getNode(control, newSucc)::nodes) [] succs
 			val currLiveOut = F.LabelMap.lookup(liveness, blockLab)
 			val newLiveOut = foldl (fn (succ, liveOut) => T.Set.union(liveOut, getLiveInTempsForBlock(control, liveness, succ, use, def))) T.Set.empty succs
 		in
 			(
-				if (not (T.Set.equal(currLiveOut, newLiveOut))) then updatedLivenessInLastIteration := true else ();
+				if (not (T.Set.equal(currLiveOut, newLiveOut))) then updatedLivenessInLastIteration := true else updatedLivenessInLastIteration := !updatedLivenessInLastIteration;
 				newLiveOut
 			)
 		end;
 
 	fun computeLivenessForIter(control, ogLiveness, def, use) =
 		let 
+			(* val _ = print("In computeLivenessForIter\n"); *)
 			val liveness = foldl (
 				fn (currentBlock, currentMap) => 
 					F.LabelMap.insert(
@@ -50,8 +55,9 @@ struct
 						getLiveOutTempsForBlock(control, currentMap, currentBlock, use, def)
 						)
 				) ogLiveness (F.LabelMap.listKeys(def))
+			(* val _ = print("In computeLivenessForIter2\n"); *)
 		in
-			liveness
+			(blocksSeenInThisIteration := []; liveness)
 		end;
 	
 	fun recursivelyComputeLiveness(control, liveness, def, use) =
@@ -79,7 +85,7 @@ struct
             (*  Update the interference graph by a label l, which indicates a node the updating is working on.
                 This function is used in fold *)
             fun updateByNode(l, baseig) = 
-                let val initLiv = getLiveoutOfNode l
+                let val initLiv = getLiveoutOfNode l;
                     (* val initDefset = getDefofNode l *)
                     val insns = F.Graph.nodeInfo(F.Graph.getNode(control, l)) (* Contains dst as a list of def temps *)
                     val revInsns = List.rev insns
@@ -140,7 +146,9 @@ struct
                                             end
 
                 in
-                    addInterferenceEdgesPerNode(baseig, initLiv, revInsns)
+
+					(
+                    addInterferenceEdgesPerNode(baseig, initLiv, revInsns))
                 end (* End updateByNode *)
         
         in
