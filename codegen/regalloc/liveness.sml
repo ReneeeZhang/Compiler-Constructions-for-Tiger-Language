@@ -147,4 +147,19 @@ struct
             foldl updateByNode {graph=IGraph.empty, moves=[]} allLabels
         end (* End generateIGraph *)
 
+        (* For debugging *)
+        fun printIGraph ig = (* Note that in an interference graph, nodeID and the data in a node are both temp *)
+            let val allNodes = IGraph.nodes ig (* get a node list *)
+                val _ = F.println("Interference graph: ")
+                fun printAdjForANode node = 
+                    let val adjNodes = IGraph.adj' ig node (* Get a node list *)
+                        val nodeData = IGraph.nodeInfo(node)
+                        fun prDataWithFormat node = (F.println o MipsFrame.display) nodeData 
+                        val _ = F.println(MipsFrame.display(nodeData) ^ " is adjacent to:")
+                    in
+                        List.app prDataWithFormat adjNodes
+                    end
+            in
+                List.app printAdjForANode allNodes
+            end
 end
