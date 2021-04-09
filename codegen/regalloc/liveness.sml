@@ -5,8 +5,64 @@ struct
     structure A = Assem
 
     type liveMap = T.Set.set F.LabelMap.map
-    fun calculateLiveness(def, use) = (* Temp.Set.set Flow.LabelMap.map * Temp.Set.set Flow.LabelMap.map -> liveMap *)
-        F.LabelMap.empty (* TODO: update later *)
+	val updatedLivenessInLastIteration = ref true
+
+	fun makeEmptyLiveMap(labelMap) = 
+		let
+			val liveness = F.LabelMap.empty
+		in
+			foldl (fn (newLabel, currentMap) => F.LabelMap.insert(currentMap, newLabel, T.Set.empty)) liveness (F.LabelMap.listKeys(labelMap))
+		end;
+	
+	fun getLiveInTempsForBlock(control, liveness, blockLab, use, def) =
+		let
+			val blockUses = F.LabelMap.lookup(use, blockLab)
+			val blockDefs = F.LabelMap.lookup(def, blockLab)
+			val liveOuts = getLiveOutTempsForBlock(control, liveness, blockLab, use, def)
+			val outMinusDefs = T.Set.difference(liveOuts, blockDefs)
+			val liveIns = T.Set.union(blockUses, outMinusDefs)
+		in
+			liveIns (* No need to check if there's a change, bc ins can only change if outs do *)
+		end
+		
+	and getLiveOutTempsForBlock(control, liveness, blockLab, use, def) = 
+		let
+			val blockNode = F.Graph.getNode(control, blockLab)
+			val succs = F.Graph.succs(blockNode) (* Returns Temp.Label list *)
+
+			(* This may not be required *)
+			val succNodes = foldl (fn (newSucc, nodes) => F.Graph.getNode(control, newSucc)::nodes) [] succs
+			val currLiveOut = F.LabelMap.lookup(liveness, blockLab)
+			val newLiveOut = foldl (fn (succ, liveOut) => T.Set.union(liveOut, getLiveInTempsForBlock(control, liveness, succ, use, def))) T.Set.empty succs
+		in
+			(
+				if (not (T.Set.equal(currLiveOut, newLiveOut))) then updatedLivenessInLastIteration := true else ();
+				newLiveOut
+			)
+		end;
+
+	fun computeLivenessForIter(control, ogLiveness, def, use) =
+		let 
+			val liveness = foldl (
+				fn (currentBlock, currentMap) => 
+					F.LabelMap.insert(
+						currentMap, currentBlock,
+						getLiveOutTempsForBlock(control, currentMap, currentBlock, use, def)
+						)
+				) ogLiveness (F.LabelMap.listKeys(def))
+		in
+			liveness
+		end;
+	
+	fun recursivelyComputeLiveness(control, liveness, def, use) =
+		if !updatedLivenessInLastIteration then (updatedLivenessInLastIteration := false; recursivelyComputeLiveness(control, computeLivenessForIter(control, liveness, def, use), def, use)) else (updatedLivenessInLastIteration := true; liveness)
+
+    fun calculateLiveness(control, def, use) = (* Temp.Set.set Flow.LabelMap.map * Temp.Set.set Flow.LabelMap.map -> liveMap *)
+        let
+			val liveness = makeEmptyLiveMap(def) (* Trust that def and use both have same key labels *)
+		in
+			recursivelyComputeLiveness(control, liveness, def, use)
+		end;
 
     structure IGraph = FuncGraph(Temp.TempOrd) (* Each node in the IGraph takes a temp as the key. Note that a graph is basically a map (adjacency list) *)
     type igraph = {
@@ -15,7 +71,7 @@ struct
     }
 
     fun generateIGraph {control, def, use, ismove} = (* Flow.flowgraph -> igraph *)
-        let val livenessInfo = calculateLiveness(def, use)
+        let val livenessInfo = calculateLiveness(control, def, use)
             val allLabels = F.LabelMap.listKeys(def)
             fun getLiveoutOfNode l = F.LabelMap.lookup(livenessInfo, l)
             fun getDefofNode l = F.LabelMap.lookup(def, l)
