@@ -146,9 +146,7 @@ struct
                                             end
 
                 in
-
-					(
-                    addInterferenceEdgesPerNode(baseig, initLiv, revInsns))
+                    addInterferenceEdgesPerNode(baseig, initLiv, revInsns)
                 end (* End updateByNode *)
         
         in
