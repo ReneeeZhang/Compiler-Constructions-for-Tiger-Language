@@ -110,7 +110,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
         let val e2' = munchExp e2
         in
             if i = Frame.ZERO andalso (e2') = Frame.ZERO then () else
-            emit(A.OPER{assem="ADD `d0, `s0, r0\n", src=[e2'],
+            emit(A.OPER{assem="MOVE `d0, `s0 \n", src=[e2'],
             dst=[i],jump=NONE})
         end
       | munchStm(T.MOVE(_, _)) = () (* Won't ever happen *)
