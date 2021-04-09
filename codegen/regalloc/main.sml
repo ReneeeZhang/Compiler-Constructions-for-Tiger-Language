@@ -14,14 +14,21 @@ fun emitproc out (MF.PROC{body,frame}) =
 	(*         val _ = app (fn s => Printtree.printtree(out,s)) stms; *)
         val stms' = Canon.traceSchedule(Canon.basicBlocks stms)
 	    val instrs =   List.concat(map (MipsGen.codegen frame) stms') 
-        val {control, def, use, ismove} = MakeGraph.instrs2graph(instrs)
-        val () = Flow.printControlGraph control
-        val _ = print("----------------------------------------------\n")
+        (* CFG *)
+        val (cfg as {control, def, use, ismove}) = MakeGraph.instrs2graph(instrs)
+        (* val _ = print("------------------- CFG ------------------\n")
+        val _ = Flow.printControlGraph control
+        val _ = print("------------------- DEF & USE ----------------------\n")
         val _ = Flow.printLabelMap(def, "DEF")
         val _ = print("**********************************************\n")
-        val _ = Flow.printLabelMap(use, "USE")
-		val _ = print("==============================================\n")
-		val _ = Flow.printLabelMap(L.calculateLiveness(control, def, use), "LIVENESS")
+        val _ = Flow.printLabelMap(use, "USE") *)
+	    val _ = print("==============================================\n")
+        (* Liveness Info *)
+        val liveness = L.calculateLiveness(control, def, use)
+	    val _ = Flow.printLabelMap(liveness, "LIVENESS")
+	    val _ = print("-------------- Interference Graph ---------------\n")
+        val {graph, moves} = L.generateIGraph(cfg)
+        val _ = L.printIGraph(graph)
             (* val _
 			 = map (fn (x) => print(case x of
 					     Assem.LABEL({assem, lab}) => "label " ^ assem
