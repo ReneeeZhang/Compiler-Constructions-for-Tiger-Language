@@ -79,7 +79,7 @@ struct
             (*  Update the interference graph by a label l, which indicates a node the updating is working on.
                 This function is used in fold *)
             fun updateByNode(l, baseig) = 
-                let val initLiv = getLiveoutOfNode l
+                let val initLiv = getLiveoutOfNode l;
                     (* val initDefset = getDefofNode l *)
                     val insns = F.Graph.nodeInfo(F.Graph.getNode(control, l)) (* Contains dst as a list of def temps *)
                     val revInsns = List.rev insns
@@ -140,7 +140,10 @@ struct
                                             end
 
                 in
-                    addInterferenceEdgesPerNode(baseig, initLiv, revInsns)
+
+					(
+					F.printLabelMapWithKey livenessInfo l;
+                    addInterferenceEdgesPerNode(baseig, initLiv, revInsns))
                 end (* End updateByNode *)
         
         in
