@@ -63,7 +63,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
     fun saveCalleeSavedRegs() = (
         emit(A.OPER{assem="# Start function-body prologue (save callee-saved regs)\n", src=[], dst=[], jump=NONE});
         emit(A.OPER{assem="SW $fp, -"^printInt(4*(1+getCurrentFrameFormalsCount()))^"($sp)\n", src=[], dst=[], jump=NONE});
-        emit(A.OPER{assem="MOVE $fp, $sp\n", src=[], dst=[], jump=NONE});
+        emit(A.MOVE{assem="MOVE $fp, $sp\n", src=Frame.SP, dst=Frame.FP});
         emit(A.OPER{assem="ADDI $sp, $sp, -"^printInt(4*(9+getCurrentFrameFormalsCount()))^"\n", src=[], dst=[], jump=NONE});
         saveSRegs(8);
         emit(A.OPER{assem="# End function-body prologue  (save callee-saved regs)\n\n", src=[], dst=[], jump=NONE})
@@ -110,8 +110,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
         let val e2' = munchExp e2
         in
             if i = Frame.ZERO andalso (e2') = Frame.ZERO then () else
-            emit(A.OPER{assem="MOVE `d0, `s0 \n", src=[e2'],
-            dst=[i],jump=NONE})
+            emit(A.MOVE{assem="MOVE `d0, `s0 \n", src=e2', dst=i})
         end
       | munchStm(T.MOVE(_, _)) = () (* Won't ever happen *)
       | munchStm(T.JUMP(T.TEMP(t), dest)) = 
@@ -175,11 +174,11 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
             result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^printInt(i)^"\n",
             src=[], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.PLUS, e1, T.CONST 0)) = 
-            result(fn r => emit(A.OPER{assem="MOVE `d0, `s0 \n",
-            src=[munchExp e1], dst=[r], jump=NONE}))
+            result(fn r => emit(A.MOVE{assem="MOVE `d0, `s0 \n",
+            src=(munchExp e1), dst=r}))
       | munchExp (T.BINOP(T.PLUS, T.CONST 0, e1)) = 
-            result(fn r => emit(A.OPER{assem="MOVE `d0, `s0 \n",
-            src=[munchExp e1], dst=[r], jump=NONE}))
+            result(fn r => emit(A.MOVE{assem="MOVE `d0, `s0 \n",
+            src=(munchExp e1), dst=r}))
       | munchExp (T.BINOP(T.PLUS, e1, T.CONST i)) = 
             result(fn r => emit(A.OPER{assem="ADDI `d0, `s0, "^ 
             printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
