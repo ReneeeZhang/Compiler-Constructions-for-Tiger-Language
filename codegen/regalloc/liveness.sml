@@ -160,7 +160,7 @@ struct
                 fun printAdjForANode node = 
                     let val adjNodes = IGraph.adj' ig node (* Get a node list *)
                         val nodeData = IGraph.nodeInfo(node)
-                        fun prDataWithFormat node = (F.println o MipsFrame.display) nodeData 
+                        fun prDataWithFormat node = (F.println o MipsFrame.display) (IGraph.nodeInfo(node)) 
                         val _ = F.println(MipsFrame.display(nodeData) ^ " is adjacent to:")
                     in
                         List.app prDataWithFormat adjNodes

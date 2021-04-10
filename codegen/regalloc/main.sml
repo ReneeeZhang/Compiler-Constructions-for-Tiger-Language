@@ -22,7 +22,7 @@ fun emitproc out (MF.PROC{body,frame}) =
         val _ = Flow.printLabelMap(def, "DEF")
         val _ = print("**********************************************\n")
         val _ = Flow.printLabelMap(use, "USE") *)
-	    val _ = print("==============================================\n")
+	    val _ = print("=================== Liveness ====================\n")
         (* Liveness Info *)
         val liveness = L.calculateLiveness(control, def, use)
 	    val _ = Flow.printLabelMap(liveness, "LIVENESS")
