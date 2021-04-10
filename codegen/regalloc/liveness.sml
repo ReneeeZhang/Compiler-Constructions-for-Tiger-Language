@@ -168,4 +168,12 @@ struct
             in
                 List.app printAdjForANode allNodes
             end
+
+        fun printMoves moves = 
+            let val _ = F.println("Moves: ")
+                fun printMove (d, s) = 
+                    F.println(MipsFrame.display(d) ^ " <-- " ^ MipsFrame.display(s))
+            in
+                List.app printMove moves
+            end
 end

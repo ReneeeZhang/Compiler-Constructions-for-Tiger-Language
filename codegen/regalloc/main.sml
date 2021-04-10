@@ -29,6 +29,7 @@ fun emitproc out (MF.PROC{body,frame}) =
 	    val _ = print("-------------- Interference Graph ---------------\n")
         val {graph, moves} = L.generateIGraph(cfg)
         val _ = L.printIGraph(graph)
+	    val _ = L.printMoves(moves)
             (* val _
 			 = map (fn (x) => print(case x of
 					     Assem.LABEL({assem, lab}) => "label " ^ assem
