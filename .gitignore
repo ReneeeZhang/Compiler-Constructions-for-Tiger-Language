@@ -4,13 +4,12 @@
 *.swp
 *.s
 
-# liveness
-liveness/.cm/
-liveness/runscript.sml
-
 # codegen
-codegen/.cm/
-codegen/runscript.sml
+codegen/regalloc/.cm/
+codegen/regalloc/runscript.sml
+
+codegen/insnsel/.cm/
+codegen/insnsel/runscript.sml
 
 # ir
 ir/.cm/**
