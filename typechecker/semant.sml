@@ -38,7 +38,8 @@ struct
     | check_eq_args(a, b,pos) = (ErrorMsg.error pos 
     ("Invalid comparison operands : "^Types.tostring(#ty a)^" and "^Types.tostring(#ty b)); {exp=(), ty=Types.BOTTOM})
 
-  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option) =
+  fun transExp (venv, tenv, exp : Absyn.exp, isLoop : unit option, for_index :
+    Symbol.symbol list) =
     let
       (*Trivial stuff*)
       fun trexp (A.OpExp{left,oper=A.PlusOp,right,pos}) = 
@@ -67,6 +68,18 @@ struct
       (*Nontrivial stuff*)
       (*TODO: still missing Call Record exps, breaks within functions*)
       (*Assign exps*)
+      | trexp (A.AssignExp{var=A.SimpleVar(symb, p), exp=exp, pos=pos}) = 
+        let 
+          val {exp=exp1,ty=ty1} = trexp(exp)
+          val {exp=exp2,ty=ty2} = trvar(A.SimpleVar(symb,p))
+          fun ismember (item, ls) = List.exists (fn (x) => x = item) ls
+        in
+         (if Types.is_subtype_of(ty1, ty2,pos) then () else ErrorMsg.error pos
+         ("Invalid assign operands : " ^ Types.tostring(ty1) ^ " and " ^
+         Types.tostring(ty2)); 
+         if (ismember(symb, for_index)) then ErrorMsg.error pos ("Cannot assign to for loop index") else ();
+         {exp=(), ty = Types.UNIT})
+        end
       | trexp (A.AssignExp{var, exp, pos}) = 
         let 
           val {exp=exp1,ty=ty1} = trexp(exp)
@@ -81,7 +94,8 @@ struct
         | trexp (A.WhileExp{test, body, pos}) = 
           let
             val {exp=exp_test, ty=ty_test} = trexp(test)
-            val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body, SOME(()))
+            val {exp=exp_body, ty=ty_body} = transExp(venv, tenv, body,
+            SOME(()), for_index)
           in
             (if Types.is_subtype_of(ty_test, Types.INT,pos) then () else
               ErrorMsg.error pos ("Loop condition is type "
@@ -100,7 +114,8 @@ struct
             val venv' = S.enter(venv, var, {access=(), ty=Types.INT})
             val {exp=exp_lo, ty=ty_lo} = trexp(lo)
             val {exp=exp_hi, ty=ty_hi} = trexp(hi)
-            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, SOME(()))
+            val {exp=exp_body, ty=ty_body} = transExp(venv',tenv,body, SOME(()),
+            (var)::for_index)
           in
             (if Types.is_subtype_of(ty_lo, Types.INT,pos) then () else
               ErrorMsg.error pos ("Loop bound is type " ^
@@ -172,8 +187,8 @@ struct
 
       (*Let Exps*)
       | trexp (A.LetExp{decs,body,pos}) = 
-        let val {venv=venv',tenv=tenv'} = transDecs(venv,tenv,decs)
-        in transExp(venv',tenv',body,NONE)
+        let val {venv=venv',tenv=tenv'} = transDecs(venv,tenv,decs,for_index)
+        in transExp(venv',tenv',body,NONE,for_index)
         end
  
       (*Seq Exps*)
@@ -304,24 +319,26 @@ struct
     end
 
   (*Dec list, venv, tenv -> venv',tenv'*)
-  and transDecs (venv, tenv, []) = {venv=venv, tenv=tenv}
-    | transDecs (venv, tenv, h::t) = 
-        let val {venv=venv', tenv=tenv'} = transDec(venv, tenv, h)
-        in transDecs (venv', tenv', t)
+  and transDecs (venv, tenv, [],for_index) = {venv=venv, tenv=tenv}
+    | transDecs (venv, tenv, h::t, for_index) = 
+        let val {venv=venv', tenv=tenv'} = transDec(venv, tenv, h, for_index)
+        in transDecs (venv', tenv', t, for_index)
         end
 
   (*Singleton dec, venv, tenv -> venv', tenv'*)
   (*Var decs*)
-  and transDec(venv,tenv,A.VarDec{escape,init=A.NilExp,name,pos,typ=NONE}) = 
+  and transDec(venv,tenv,A.VarDec{escape,init=A.NilExp,name,pos,typ=NONE},
+  for_index) = 
     (ErrorMsg.error pos ("Illegal nil use: record needed"); {tenv=tenv,
      venv=venv})
-  | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}) = 
-    let val {exp,ty} = transExp(venv,tenv,init,NONE)
+  | transDec (venv,tenv,A.VarDec{escape,init,name,pos,typ=NONE}, for_index) = 
+    let val {exp,ty} = transExp(venv,tenv,init,NONE,for_index)
     in {tenv=tenv, venv=S.enter(venv,name,{access=(), ty=ty})}
     end
-  | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)}) =
+  | transDec (venv, tenv, A.VarDec{escape,init,name,pos,typ=SOME(typ)},
+    for_index) =
     let 
-      val {exp,ty} = transExp(venv,tenv,init,NONE)
+      val {exp,ty} = transExp(venv,tenv,init,NONE,for_index)
       val type_lookup = case S.look(tenv, (#1 typ)) of SOME(label_ty) =>
                    if Types.is_subtype_of(label_ty,ty,pos) then label_ty else
                      (ErrorMsg.error pos ("Mismatched type in declaration");
@@ -333,7 +350,7 @@ struct
     end
         
   (*Type Decs*)
-  | transDec (venv,tenv,A.TypeDec(tydec_group)) = 
+  | transDec (venv,tenv,A.TypeDec(tydec_group),for_index) = 
     let exception UNIQUE_RECORDS
         val unique_ref_map : (string, Types.unique) H.hash_table =
             H.mkTable(HashString.hashString, op =) (128, UNIQUE_RECORDS) (* A type name(string) to unique ref map associated with each type dec group *)
@@ -377,7 +394,7 @@ struct
   (*Single-function funcdec with 0 or more params*)
   | transDec (venv,tenv,
       A.FunctionDec([{name, params, body, pos,
-        result=SOME(rt,respos)}])) =
+        result=SOME(rt,respos)}]),for_index) =
       let val result_ty = case S.look(tenv,rt) of
           SOME(rty) => rty
           | NONE => (ErrorMsg.error pos ("Undefined return type in function definition"); T.UNIT)
@@ -400,7 +417,7 @@ struct
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
         val venv'' = S.enter(venv', name, {access=(), ty=Types.ARROW(typelist,
         result_ty)})
-		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE)
+		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE,for_index)
 		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist,
         result_ty)})
       in if Types.is_subtype_of(bodytype, result_ty,pos) then () else
@@ -411,7 +428,7 @@ struct
   (*Single-procedure funcdec with 0 or more params*)
   | transDec (venv,tenv,
       A.FunctionDec([{name, params, body, pos,
-        result=NONE}])) =
+        result=NONE}]),for_index) =
       let
         fun transparam(absf:Absyn.field) = 
             case S.look(tenv, #typ absf) of
@@ -432,16 +449,17 @@ struct
         val venv' = foldl enterparam venv params' (*Pretty sure this was a typo in the book*)
 		val venv'' = S.enter(venv', name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
 		val venv''' = S.enter(venv, name, {access=(), ty=Types.ARROW(typelist, Types.UNIT)})
-		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE)
+		val {exp=_,ty=bodytype} = transExp(venv'', tenv, body, NONE, for_index)
       in if Types.is_subtype_of(bodytype, Types.UNIT,pos) then () else
         ErrorMsg.error pos ("Procedure body type must be UNIT, not " ^
         Types.tostring(bodytype)); {venv=venv''',tenv=tenv}
       end
   
   (*funcdec with multiple functions/procedures*)
-  | transDec (venv,tenv, A.FunctionDec(otherfds)) =
+  | transDec (venv,tenv, A.FunctionDec(otherfds),for_index) =
 	(checkThatNoTwoMutuallyRecursiveFunctionsHaveTheSameName(otherfds);
-    processFunDecList(collectHeadersFromFunDecList(venv, tenv, A.FunctionDec(otherfds)),tenv,A.FunctionDec(otherfds)) 
+    processFunDecList(collectHeadersFromFunDecList(venv, tenv,
+    A.FunctionDec(otherfds)),tenv,A.FunctionDec(otherfds),for_index) 
 	)
   and checkThatNoTwoMutuallyRecursiveFunctionsHaveTheSameName(fds:A.fundec list) =
 	let val _ = foldl (fn (fd: A.fundec, current_list_of_names) => (
@@ -451,11 +469,13 @@ struct
 	)) [] fds
 	in () end
 	
-  and processFunDecList(venv,tenv, A.FunctionDec([])) = {venv=venv,tenv=tenv}
-  | processFunDecList(venv,tenv, A.FunctionDec([fd])) = transDec(venv,tenv,A.FunctionDec([fd]))
-  | processFunDecList(venv,tenv, A.FunctionDec(fd::otherfds)) =
-    (transDec(venv,tenv,A.FunctionDec([fd])); processFunDecList(venv,tenv,A.FunctionDec(otherfds)))
-  | processFunDecList(venv,tenv, _) = ((*Impossible state*){venv=venv,tenv=tenv})
+  and processFunDecList(venv,tenv, A.FunctionDec([]),for_index) = {venv=venv,tenv=tenv}
+  | processFunDecList(venv,tenv, A.FunctionDec([fd]),for_index) =
+  transDec(venv,tenv,A.FunctionDec([fd]),for_index)
+  | processFunDecList(venv,tenv, A.FunctionDec(fd::otherfds),for_index) =
+    (transDec(venv,tenv,A.FunctionDec([fd]),for_index);
+     processFunDecList(venv,tenv,A.FunctionDec(otherfds),for_index))
+  | processFunDecList(venv,tenv, _,for_index) = ((*Impossible state*){venv=venv,tenv=tenv})
 
   
   and collectHeadersFromFunDecList(venv, tenv, A.FunctionDec([])) = venv
@@ -600,6 +620,6 @@ struct
     end
 
   fun transProg (tree : Absyn.exp) = 
-    (transExp(E.base_venv, E.base_tenv, tree,NONE);())
+    (transExp(E.base_venv, E.base_tenv, tree,NONE, []);())
     
 end
