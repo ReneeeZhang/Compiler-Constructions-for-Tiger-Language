@@ -114,7 +114,14 @@ struct
                         in
                             case insn of
                                 A.OPER{assem, dst, src, jump} => {graph=(foldl addInterferenceEdgeFromSingleDefTemp baseig dst), moves=m}
-                              | A.MOVE{assem, dst, src} => {graph=addInterferenceEdgeFromSingleDefTemp(dst, baseig), moves=(dst, src)::m}
+                              | A.MOVE{assem, dst, src} =>  let val newgraph' = addInterferenceEdgeFromSingleDefTemp(dst, baseig)
+                                                                val newgraph =  if IGraph.hasNode(newgraph', src)
+                                                                                then newgraph'
+                                                                                else IGraph.addNode(newgraph', src, src)
+                                                            in
+                                                                {graph=newgraph,
+                                                                 moves=(IGraph.getNode(newgraph, dst), IGraph.getNode(newgraph, src))::m}
+                                                            end
                               | A.LABEL(_) => {graph=baseig, moves=m} (* Won't happen *)
                         end (* End addInterferenceEdges *)
 
@@ -172,7 +179,7 @@ struct
         fun printMoves moves = 
             let val _ = F.println("Moves: ")
                 fun printMove (d, s) = 
-                    F.println(MipsFrame.display(d) ^ " <-- " ^ MipsFrame.display(s))
+                    F.println(MipsFrame.display(IGraph.nodeInfo d) ^ " <-- " ^ MipsFrame.display(IGraph.nodeInfo s))
             in
                 List.app printMove moves
             end
