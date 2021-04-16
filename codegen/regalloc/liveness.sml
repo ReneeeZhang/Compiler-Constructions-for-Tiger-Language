@@ -1,4 +1,18 @@
-structure Liveness =
+signature LIVENESS = 
+sig
+    structure IGraph : FUNCGRAPH
+    type igraph = {
+        graph: Temp.temp IGraph.graph, (* Each temp is itself a node in the interference graph *)
+        moves: (Temp.temp IGraph.node * Temp.temp IGraph.node) list
+    }
+    type liveMap = Temp.Set.set Flow.LabelMap.map
+    val calculateLiveness : Assem.instr list Flow.Graph.graph * Temp.Set.set Flow.LabelMap.map * Temp.Set.set Flow.LabelMap.map -> liveMap
+    val generateIGraph : Flow.flowgraph -> igraph
+    val printIGraph : Temp.temp IGraph.graph -> unit
+    val printMoves : (Temp.temp IGraph.node * Temp.temp IGraph.node) list -> unit
+end
+
+structure Liveness :> LIVENESS =
 struct
     structure F = Flow
     structure T = Temp
