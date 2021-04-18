@@ -1,32 +1,42 @@
-signature COLOR = 
+(* signature COLOR = 
 sig
     structure Frame : FRAME
-    type allocation = Temp.Map
+    type allocation = Frame.register Temp.Map.map
+    structure RegSet : ORD_SET sharing type RegSet.Key.ord_key = Frame.register
     val color: {interference: Liveness.igraph, 
                 initial: allocation, 
-                spillPriority: Liveness.IGraph.node -> int, 
-                registers: Frame.register list} -> allocation * Temp.temp list
-end
+                spillPriority: Temp.temp Liveness.IGraph.node -> int, 
+                registers: RegSet.set} -> allocation(* * Temp.temp list *)
+end *)
 
-structure Color :> COLOR = 
+structure Color = 
 struct
     structure L = Liveness
     structure LIG = L.IGraph
+    structure TM = Temp.Map
+		       
+    structure Frame = MipsFrame
+    type allocation = Frame.register Temp.Map.map
+    structure RegSet = SplaySetFn(struct 
+                                        type ord_key = Frame.register
+                                        val compare = String.compare
+                                  end)
+
+    exception NotEnoughRegs
 
     val numColors = 25 (* TODO: make sure the number of colors *)
-    structure Frame = MipsFrame
-    type allocation = Temp.Map
     fun color {interference={graph=ifgraph, moves}, initial, spillPriority, registers} = 
-        let 
-            (* Categorize from interference graph to have a list of nodes of trivial degrees and of non-trivial degrees *)
-            fun makeWorkList ifgraph = 
+            (* Categorize from interference graph to have a list of nodes of trivial degrees and of non-trivial degrees 
+               Note that both simplifyWorkList and spillWorkList have type (Temp.temp node * (Temp.temp.node list) list. 
+               Each element in these lists indicates a node and its adj nodes *)
+        let fun makeWorkList ifgraph = 
                 let val allNodes = LIG.nodes ifgraph
                     fun makeWorkListsFromSingleNode (node, {simplifyWorkList=simplifyL, spillWorkList=spillL}) =
                         case Temp.Map.find(initial, LIG.nodeInfo(node)) of (* Check if the node is precolored *)
-                            SOME(_) => {simplifyWorkList=simplifyL, spillWorkList=spillL}
-                          | NONE => if LIG.degree(node) >= numColors
-                                    then {simplifyWorkList=simplifyL, spillWorkList=node::spillL}
-                                    else {simplifyWorkList=node::simplifyL, spillWorkList=spillL}
+                                SOME(_) => {simplifyWorkList=simplifyL, spillWorkList=spillL}
+                              | NONE => if LIG.degree(node) >= numColors
+                                        then {simplifyWorkList=simplifyL, spillWorkList=(node, (LIG.adj' ifgraph node))::spillL}
+                                        else {simplifyWorkList=(node, (LIG.adj' ifgraph node))::simplifyL, spillWorkList=spillL}
                 in
                     foldl makeWorkListsFromSingleNode {simplifyWorkList=[], spillWorkList=[]} allNodes
                 end
@@ -35,13 +45,13 @@ struct
             fun areAllPrecolored ifgraph =
                 let val allNodeData = map LIG.nodeInfo (LIG.nodes ifgraph)
                 in
-                    List.all (fn d => Temp.Map.inDomain d) allNodeData
+                    List.all (fn d => TM.inDomain(initial, d)) allNodeData
                 end
 
             fun generateStack(ifgraph, stack) = 
                 let val {simplifyWorkList, spillWorkList} = makeWorkList ifgraph
                     fun simplify simplifyWorkList = 
-                        let val simplifiedIfgraph = foldl (fn (node, g) => LIG.remove(g, node)) ifgraph simplifyWorkList
+                        let val simplifiedIfgraph = foldl (fn ((node, _), g) => LIG.remove(g, node)) ifgraph simplifyWorkList
                         in 
                             generateStack(simplifiedIfgraph, simplifyWorkList@stack)
                         end
@@ -49,19 +59,19 @@ struct
                     fun potentialSpill spillWorkList = 
                         let fun getSpillNode spills = 
                                 case spills of
-                                    [] => raise empty
-                                  | s::[] => s
-                                  | s::spills' =>   let val t = getSpills(spills')
-                                                    in
-                                                        if spillPriority(s) > spillPriority(t)
-                                                        then s
-                                                        else t
-                                                    end
+                                    [] => raise Empty
+                                  | (s as (node, _))::[] => s
+                                  | (s as (node, _))::spills' =>    let val (t as (node', _)) = getSpillNode(spills')
+                                                                    in
+                                                                        if spillPriority(node) > spillPriority(node')
+                                                                        then s
+                                                                        else t
+                                                                    end
 
-                            val spillNode = getSpillNode(spillWorkList)
+                            val (sp as (spillNode, _)) = getSpillNode(spillWorkList)
                             val ifgraphWithSpillNodeRemoved = LIG.remove(ifgraph, spillNode)
                         in
-                            generateStack(ifgraphWithSpillNodeRemoved, spillNode::stack)
+                            generateStack(ifgraphWithSpillNodeRemoved, sp::stack)
                         end  
                 in
                     case simplifyWorkList of
@@ -71,9 +81,35 @@ struct
                       | _ => simplify simplifyWorkList 
                 end
             
-            (* fun assignColors () = *)
+            fun assignColors () =
+                let val stack = generateStack(ifgraph, [])
+                    (* Given a stack s to rebuild, and the ans, extendedMap, return extendedMap when s is empty *)
+                    fun assignColorsBasedOnStack(s, extendedMap) = 
+                        case stack of
+                            [] => extendedMap
+                          | (node, adjs)::s' => 
+                            (*  Delete a the string reg from availableRegs if the corresonding temp is found in TM *)
+                            let fun delete(temp, availableRegs) = 
+                                    case TM.find(extendedMap, temp) of
+                                        SOME(reg) => RegSet.delete(availableRegs, reg)
+                                      | NONE => availableRegs
+                                val adjTemps = map LIG.nodeInfo adjs
+                                val possibleRegs = foldl delete registers adjTemps (* Remove all the adj colors from registers set *)
+                                val possibleRegsList = RegSet.toList(possibleRegs)
+                            in
+                                case possibleRegsList of
+                                    [] => raise NotEnoughRegs (* Where actual spilling happens *)
+                                  | reg::_ => let val extendedMap' = TM.insert(extendedMap, LIG.nodeInfo(node), reg)
+                                            in 
+                                                assignColorsBasedOnStack(s', extendedMap')
+                                            end
+                            end
+                in  
+                    assignColorsBasedOnStack(stack, initial)
+                end (* End assignColors *)
 
+        in
+            assignColors()
+        end
 
-
-
-end
+end (* End structure *)
