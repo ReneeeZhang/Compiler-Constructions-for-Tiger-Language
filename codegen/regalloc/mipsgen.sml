@@ -104,7 +104,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
             emit(A.OPER{assem="SW `s1, 0(`s0)\n", src=[munchExp e1, munchExp e2],
             dst=[], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, T.CONST j)) = 
-            emit(A.OPER{assem="ADDI `d0, r0, "^printInt(j)^"\n", src=[],
+            emit(A.OPER{assem="ADDI `d0, $0, "^printInt(j)^"\n", src=[],
             dst=[i], jump=NONE})
       | munchStm(T.MOVE(T.TEMP i, e2)) = 
         let val e2' = munchExp e2
@@ -171,7 +171,7 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
       | munchArgs(argNumber, []) = []
 
     and munchExp (T.CONST i) = 
-            result(fn r => emit(A.OPER{assem="ADDI `d0, r0, "^printInt(i)^"\n",
+            result(fn r => emit(A.OPER{assem="ADDI `d0, $0, "^printInt(i)^"\n",
             src=[], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.PLUS, e1, T.CONST 0)) = 
             result(fn r => emit(A.MOVE{assem="MOVE `d0, `s0 \n",
