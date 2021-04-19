@@ -1,35 +1,33 @@
-(* signature COLOR = 
+signature COLOR = 
 sig
     structure Frame : FRAME
     type allocation = Frame.register Temp.Map.map
-    structure RegSet : ORD_SET sharing type RegSet.Key.ord_key = Frame.register
     val color: {interference: Liveness.igraph, 
                 initial: allocation, 
                 spillPriority: Temp.temp Liveness.IGraph.node -> int, 
-                registers: RegSet.set} -> allocation(* * Temp.temp list *)
-end *)
+                registers: MipsFrame.RegSet.set} -> allocation(* * Temp.temp list *)
+    val display : allocation -> Temp.temp -> string
+end
 
 structure Color = 
 struct
     structure L = Liveness
     structure LIG = L.IGraph
     structure TM = Temp.Map
+    structure MF = MipsFrame
 		       
     structure Frame = MipsFrame
     type allocation = Frame.register Temp.Map.map
-    structure RegSet = SplaySetFn(struct 
-                                        type ord_key = Frame.register
-                                        val compare = String.compare
-                                  end)
 
     exception NotEnoughRegs
+    exception NotAssignedTemp of Temp.temp
 
-    val numColors = 25 (* TODO: make sure the number of colors *)
     fun color {interference={graph=ifgraph, moves}, initial, spillPriority, registers} = 
             (* Categorize from interference graph to have a list of nodes of trivial degrees and of non-trivial degrees 
                Note that both simplifyWorkList and spillWorkList have type (Temp.temp node * (Temp.temp.node list) list. 
                Each element in these lists indicates a node and its adj nodes *)
-        let fun makeWorkList ifgraph = 
+        let val numColors = MF.RegSet.numItems(registers)
+            fun makeWorkList ifgraph = 
                 let val allNodes = LIG.nodes ifgraph
                     fun makeWorkListsFromSingleNode (node, {simplifyWorkList=simplifyL, spillWorkList=spillL}) =
                         case Temp.Map.find(initial, LIG.nodeInfo(node)) of (* Check if the node is precolored *)
@@ -85,17 +83,20 @@ struct
                 let val stack = generateStack(ifgraph, [])
                     (* Given a stack s to rebuild, and the ans, extendedMap, return extendedMap when s is empty *)
                     fun assignColorsBasedOnStack(s, extendedMap) = 
-                        case stack of
+                        case s of
                             [] => extendedMap
                           | (node, adjs)::s' => 
                             (*  Delete a the string reg from availableRegs if the corresonding temp is found in TM *)
                             let fun delete(temp, availableRegs) = 
                                     case TM.find(extendedMap, temp) of
-                                        SOME(reg) => RegSet.delete(availableRegs, reg)
+                                        SOME(reg) => MF.RegSet.subtract(availableRegs, reg)
                                       | NONE => availableRegs
                                 val adjTemps = map LIG.nodeInfo adjs
+                                (* val _ = print("!!!!The node " ^ MF.display(LIG.nodeInfo(node)) ^ " has adjs:\n")
+                                val _ = List.app (fn x => print(MF.display(x) ^ "\n"))  adjTemps
+                                val _ = print("For a node's adjs:" ^ MipsFrame.display(LIG.nodeInfo(node)) ^ "\n") *)
                                 val possibleRegs = foldl delete registers adjTemps (* Remove all the adj colors from registers set *)
-                                val possibleRegsList = RegSet.toList(possibleRegs)
+                                val possibleRegsList = MF.RegSet.toList(possibleRegs)
                             in
                                 case possibleRegsList of
                                     [] => raise NotEnoughRegs (* Where actual spilling happens *)
@@ -111,5 +112,10 @@ struct
         in
             assignColors()
         end
+    
+    fun display allocatedRegMap t = 
+        case TM.find(allocatedRegMap, t) of
+            SOME(regname) => regname
+          | NONE => raise NotAssignedTemp(t)
 
 end (* End structure *)
