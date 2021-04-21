@@ -10,6 +10,7 @@ sig
     val allocLocal : frame -> bool -> access (* allocate a new local variable in a frame; The boolean argument to allocLocal 
                                                 specifies whether the new variable escapes and needs to go in the frame; 
                                                 if it is false, then the variable can be allocated in a register. *)  
+    structure RegSet : ORD_SET
 
     val FP : Temp.temp
     val RA : Temp.temp
@@ -24,6 +25,7 @@ sig
     val string : Tree.label * string -> string
     val display : Temp.temp -> string
     val tempMap : register Temp.Map.map
+    val availableRegs : RegSet.set
     val exp : access -> Tree.exp -> Tree.exp (* used by Translate to turn a Frame.access into the Tree expression. 
                                             The Tree.exp argument to Frame.exp is the address of the stack frame that the access lives in *)
     val externalCall : string * Tree.exp list -> Tree.exp
