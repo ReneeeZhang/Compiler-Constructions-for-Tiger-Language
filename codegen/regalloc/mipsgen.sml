@@ -195,11 +195,11 @@ fun codegen (frame: Frame.frame) (stm: Tree.stm) : Assem.instr list =
             result(fn r => emit(A.OPER{assem="addi `d0, `s0, "^ 
             printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.MINUS, e1, T.CONST i)) = 
-            result(fn r => emit(A.OPER{assem="subi `d0, `s0, "^ 
-            printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
+            result(fn r => emit(A.OPER{assem="addi `d0, `s0, "^ 
+            (if i >= 0 then "-"^printInt(i) else printInt(~1*i))^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.BINOP(T.MINUS, T.CONST i, e1)) = 
-            result(fn r => emit(A.OPER{assem="subi `d0, `s0, "^ 
-            printInt(i)^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
+            result(fn r => emit(A.OPER{assem="addi `d0, `s0, "^ 
+            (if i >= 0 then "-"^printInt(i) else printInt(~1*i))^"\n", src=[munchExp e1], dst=[r], jump=NONE}))
       | munchExp (T.NAME l) = result(fn r => emit(A.OPER{
         assem="la `d0, " ^ Symbol.name(l) ^ "\n", src=[], dst=[r], jump=NONE
       }))

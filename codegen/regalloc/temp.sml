@@ -47,7 +47,12 @@ struct
 	    Symbol.symbol (Format.format "L%d" [Format.INT(!labelCount)])
 	end
 
-    fun newFunctionLabel() = Symbol.symbol(Format.format "tig_L%d" [Format.INT(!labelCount)])
+    fun newFunctionLabel() = 
+	let val x  = !labelCount
+	    val () = labelCount := x + 1
+	in
+		Symbol.symbol (Format.format "tig_L%d" [Format.INT(!labelCount)])
+	end
 
     val namedlabel = Symbol.symbol
 
