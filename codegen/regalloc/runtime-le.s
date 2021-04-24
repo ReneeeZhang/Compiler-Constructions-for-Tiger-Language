@@ -752,3 +752,15 @@ tig_flush:
 tig_exit:
   j exit
   .end tig_exit
+
+# CUSTOM RUNTIME LIBRARY FUNCTIONS
+tig_array_out_of_bounds:
+	la $a0, tig_array_out_of_bounds_message
+	jal tig_print
+	j exit
+	.end tig_array_out_of_bounds
+
+.data
+tig_array_out_of_bounds_message:
+.word 37
+.ascii "[RUNTIME ERROR] Array out of bounds!\n"
