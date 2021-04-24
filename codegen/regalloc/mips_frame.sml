@@ -72,13 +72,8 @@ val tempMap = let val tmap1 = TT.insert(TT.empty, FP, "$fp")
                     tmap_final
               end
 
-val availableRegs = let val ar1 = RegSet.add(RegSet.empty, "$v0")
-                        val ar2 = RegSet.add(ar1, "$v1")
-                        val ar3 = RegSet.add(ar2, "$a0")
-                        val ar4 = RegSet.add(ar3, "$a1")
-                        val ar5 = RegSet.add(ar4, "$a2")
-                        val ar6 = RegSet.add(ar5, "$a3")
-                        val ar7 = RegSet.add(ar6, "$t0")
+val availableRegs = let 
+                        val ar7 = RegSet.add(RegSet.empty, "$t0")
                         val ar8 = RegSet.add(ar7, "$t1")
                         val ar9 = RegSet.add(ar8, "$t2")
                         val ar10 = RegSet.add(ar9, "$t3")
@@ -96,11 +91,8 @@ val availableRegs = let val ar1 = RegSet.add(RegSet.empty, "$v0")
                         val ar22 = RegSet.add(ar21, "$s5")
                         val ar23 = RegSet.add(ar22, "$s6")
                         val ar24 = RegSet.add(ar23, "$s7")
-                        val ar25 = RegSet.add(ar24, "$sp")
-                        val ar26 = RegSet.add(ar25, "$fp")
-                        val ar27 = RegSet.add(ar26, "$ra")
 
-                        val arfinal = ar27
+                        val arfinal = ar24
                     in
                         arfinal
                     end

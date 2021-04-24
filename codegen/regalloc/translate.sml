@@ -92,8 +92,28 @@ struct
     | simpleVar((lev', MF.InReg(temp)), lev) = 
       Ex(T.TEMP(temp))
 
-  fun array_create(size,init) = Ex(MF.externalCall("tig_initArray", [unEx
-    size,unEx init]))
+  fun array_create(size,init) = 
+  let
+  	val arrayTemp = Temp.newtemp()
+    val arrayInitLoop = Temp.newlabel()
+    val arrayInitLoopNotYetDone = Temp.newlabel()
+    val arrayInitLoopDone = Temp.newlabel()
+    val arrayIterTemp = Temp.newtemp()
+	in
+	  Ex(T.ESEQ(seq[
+      T.MOVE(T.TEMP(arrayTemp), MF.externalCall("tig_initArray", [unEx size,unEx init])),
+      T.MOVE(T.TEMP(arrayIterTemp), T.CONST 0),
+      T.LABEL(arrayInitLoop),
+      T.CJUMP(T.GE, T.TEMP(arrayIterTemp), unEx size, arrayInitLoopDone, arrayInitLoopNotYetDone),
+      T.LABEL(arrayInitLoopNotYetDone),
+      T.MOVE(T.MEM(T.BINOP(T.PLUS, T.TEMP(arrayTemp), T.BINOP(T.MUL, T.CONST 4, T.BINOP(T.PLUS, T.CONST 1, T.TEMP(arrayIterTemp))))), unEx init),
+      T.MOVE(T.TEMP(arrayIterTemp), T.BINOP(T.PLUS, T.TEMP(arrayIterTemp), T.CONST 1)),
+      T.JUMP(T.NAME(arrayInitLoop), [arrayInitLoop]),
+      T.LABEL(arrayInitLoopDone)
+    ],
+      T.TEMP(arrayTemp)
+      ))
+  end
 
   fun subscriptVar(array, index) = 
     let
@@ -101,16 +121,16 @@ struct
       val maybe = Temp.newlabel()
       val bad = Temp.newlabel()
       val done = Temp.newlabel()
+      val badDone = Temp.newlabel()
       val size = Temp.newtemp()
       val result = Temp.newtemp()
     in
-      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(size), T.MEM(T.BINOP(T.MINUS, unEx array,
-      T.CONST MF.wordSize))), T.CJUMP(T.LT, unEx index, T.CONST 0, bad,
+      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(size), T.MEM(unEx array)), T.CJUMP(T.LT, unEx index, T.CONST 0, bad,
       maybe), T.LABEL(maybe), T.CJUMP(T.GT, unEx index, T.TEMP(size),
       bad, good), T.LABEL(bad), T.MOVE(T.TEMP(result), T.CONST
-      0), T.JUMP(T.NAME(done), [done]), T.LABEL(good), T.MOVE(T.TEMP(result),  
-       T.MEM(T.BINOP(T.PLUS, unEx array, unEx index))), T.JUMP(T.NAME(done),
-       [done]), T.LABEL(done)], T.TEMP(result)))
+      0), T.JUMP(T.NAME(badDone), [badDone]), T.LABEL(badDone), T.MOVE(T.TEMP(Temp.newtemp()), MF.externalCall("exit", [T.CONST 1])), T.LABEL(good), T.MOVE(T.TEMP(result),  
+       T.MEM(T.BINOP(T.PLUS, unEx array, T.BINOP(T.MUL, T.BINOP(T.PLUS, (unEx index), T.CONST 1), T.CONST 4)))), T.JUMP(T.NAME(done),
+       [done]), T.LABEL(done)], T.MEM(T.BINOP(T.PLUS, unEx array, T.BINOP(T.MUL, T.BINOP(T.PLUS, (unEx index), T.CONST 1), T.CONST 4)))))
     end
 
   fun record_creation(initlist) = (* initlist is a list of Trans.exp *)
@@ -330,7 +350,7 @@ struct
 
   fun unit_exp() = Ex(T.CONST 0)
 
-  fun str_eq(a,b) = Ex(MF.externalCall("stringEqual", [unEx a, unEx b]))
+  fun str_eq(a,b) = Ex(MF.externalCall("tig_stringEqual", [unEx a, unEx b]))
 
   fun str_neq(a,b) = 
     let
@@ -340,7 +360,7 @@ struct
       val one = Temp.newlabel()
       val done = Temp.newlabel()
     in
-      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(fnres), MF.externalCall("stringEqual", [unEx a, unEx b])),
+      Ex(T.ESEQ(seq[T.MOVE(T.TEMP(fnres), MF.externalCall("tig_stringEqual", [unEx a, unEx b])),
       T.CJUMP(T.EQ, T.TEMP(fnres), T.CONST 0, zero, one), T.LABEL(zero),
       T.MOVE(T.TEMP(result), T.CONST 1), T.JUMP(T.NAME(done), [done]),
       T.LABEL(one), T.MOVE(T.TEMP(result), T.CONST 0), T.JUMP(T.NAME(done),
