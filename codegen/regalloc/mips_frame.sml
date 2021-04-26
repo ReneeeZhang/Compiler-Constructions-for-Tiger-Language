@@ -9,6 +9,10 @@ type frame = {formals: access list, view_shift: Tree.stm list, numlocals: int re
 type register = string
 datatype frag = PROC of {body: Tree.stm, frame: frame}
                   | STRING of Temp.label * string 
+structure RegSet = SplaySetFn(struct 
+                               type ord_key = register
+                               val compare = String.compare
+                               end)
 
 (* Do NOT change the order of the following newtemp declarations *)
 val FP = Temp.newtemp()
@@ -68,6 +72,31 @@ val tempMap = let val tmap1 = TT.insert(TT.empty, FP, "$fp")
                     tmap_final
               end
 
+val availableRegs = let 
+                        val ar7 = RegSet.add(RegSet.empty, "$t0")
+                        val ar8 = RegSet.add(ar7, "$t1")
+                        val ar9 = RegSet.add(ar8, "$t2")
+                        val ar10 = RegSet.add(ar9, "$t3")
+                        val ar11 = RegSet.add(ar10, "$t4")
+                        val ar12 = RegSet.add(ar11, "$t5")
+                        val ar13 = RegSet.add(ar12, "$t6")
+                        val ar14 = RegSet.add(ar13, "$t7")
+                        val ar15 = RegSet.add(ar14, "$t8")
+                        val ar16 = RegSet.add(ar15, "$t9")
+                        val ar17 = RegSet.add(ar16, "$s0")
+                        val ar18 = RegSet.add(ar17, "$s1")
+                        val ar19 = RegSet.add(ar18, "$s2")
+                        val ar20 = RegSet.add(ar19, "$s3")
+                        val ar21 = RegSet.add(ar20, "$s4")
+                        val ar22 = RegSet.add(ar21, "$s5")
+                        val ar23 = RegSet.add(ar22, "$s6")
+                        val ar24 = RegSet.add(ar23, "$s7")
+
+                        val arfinal = ar24
+                    in
+                        arfinal
+                    end
+
 val wordSize = 4
 val emptyFrame = {formals=([]: access list), view_shift=([]: Tree.stm list), numlocals=ref 0, name=Temp.newlabel()}
 fun newFrame {name=n, formals=fo} = 
@@ -119,7 +148,7 @@ fun name {formals, view_shift, numlocals, name} =
 fun formals {formals, view_shift, numlocals, name} = 
     formals
 
-fun string (lab, s) = (Symbol.name(lab) ^ ": .asciiz \"" ^ s ^ "\"\n")
+fun string (lab, s) = (".data\n" ^ Symbol.name(lab) ^ ": \n.word " ^ Int.toString(size(s)) ^ "\n.ascii \"" ^ s ^ "\"\n.text\n")
 
 fun display temp = 
     case TT.find(tempMap, temp) of

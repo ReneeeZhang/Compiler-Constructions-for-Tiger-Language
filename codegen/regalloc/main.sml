@@ -6,7 +6,6 @@ structure L = Liveness
 (* structure R = RegAlloc *)
 
 fun getsome (SOME x) = x
-
 fun emitproc out (MF.PROC{body,frame}) =
     let val _ = print ("emit " ^ Symbol.name(MF.name frame) ^ "\n")
 	(*         val _ = Printtree.printtree(out,body); *)
@@ -27,16 +26,13 @@ fun emitproc out (MF.PROC{body,frame}) =
         val liveness = L.calculateLiveness(control, def, use)
 	    val _ = Flow.printLabelMap(liveness, "LIVENESS")
 	    val _ = print("-------------- Interference Graph ---------------\n")
-        val {graph, moves} = L.generateIGraph(cfg)
+        val (ifgraph as {graph, moves}) = L.generateIGraph(cfg)
         val _ = L.printIGraph(graph)
 	    val _ = L.printMoves(moves)
-            (* val _
-			 = map (fn (x) => print(case x of
-					     Assem.LABEL({assem, lab}) => "label " ^ assem
-					   | Assem.MOVE({assem, dst, src}) => assem
-					   | Assem.OPER({assem, dst, src, jump}) => assem)) instrs *)
-        val format0 = Assem.format(MF.display)
-    in  app (fn i => TextIO.output(out,format0 i)) instrs
+        val allocatedRegMap = Color.color {interference=ifgraph, initial=MF.tempMap, spillPriority=L.IGraph.degree, registers=MF.availableRegs}
+        (* val format0 = Assem.format(MF.display) *)
+        val format0 = Assem.format(Color.display allocatedRegMap)
+    in  (TextIO.output(out, ".text\n"); app (fn i => TextIO.output(out,format0 i)) instrs)
     end
   | emitproc out (MF.STRING(lab,s)) = TextIO.output(out,MF.string(lab,s))
 
@@ -47,12 +43,28 @@ fun withOpenFile fname f =
        handle e => (TextIO.closeOut out; raise e)
     end 
 
+fun getFileContents fname =
+	let
+		val in' = TextIO.openIn fname
+	in
+		TextIO.inputAll in'
+	end
+
 fun compile filename = 
     let val absyn = Parse.parse filename
         val frags = (FindEscape.findEscape absyn; Semant.transProg absyn)
+		val sysspimBody = getFileContents("sysspim.s")
+		val runtimeBody = getFileContents("runtime-le.s")
     in 
         withOpenFile (filename ^ ".s") 
-		     (fn out => (app (emitproc out) frags))
+			(
+				fn out => (
+					(app (emitproc out) frags);
+					TextIO.output(out, sysspimBody);
+					TextIO.output(out, runtimeBody)
+				)
+			
+			)
     end
 
 end
